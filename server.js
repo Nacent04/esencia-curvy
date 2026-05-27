@@ -193,7 +193,7 @@ async function initDB() {
 }
 
 const configInicial = {
-    logo: '', empresa: JSON.stringify({ nombre: "ESENCIA CURVY", telefono: "", email: "casaelegida20@gmail.com", direccion: "" }),
+    logo: '', empresa: JSON.stringify({ nombre: "ESENCIA CURVY", telefono: "", email: "esenciacurvy26@gmail.com", direccion: "" }),
     horarios: JSON.stringify({ lunesViernes: "9:00 - 13:00 y 17:00 - 20:00", sabados: "9:00 - 13:00", domingos: "Cerrado" }),
     redes: JSON.stringify({ instagram: "", facebook: "", tiktok: "", whatsapp: "" }),
     pagos: JSON.stringify({ alias: "", cbu: "", banco: "", titular: "" }),
@@ -279,7 +279,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'casa-elegida-session-secret';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const CALLBACK_URL = process.env.CALLBACK_URL || 'https://casaelegida.com.ar/auth/google/callback';
+const CALLBACK_URL = process.env.CALLBACK_URL || 'https://esencia-curvy-production.up.railway.app/auth/google/callback';
 const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
 
 ['./uploads', './public', './backups', './backups/temp'].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
@@ -1062,7 +1062,7 @@ app.use((err, req, res, next) => { console.error(err); res.status(500).json({ er
 
 async function start() {
     await initDB(); await initConfig(); await initMetodosEnvio(); await initAdmin();
-    app.listen(PORT, () => console.log(`\n🏪 ESENCIA CURVY - http://localhost:${PORT}\n📊 Panel Admin: http://localhost:${PORT}/admin\n🛍️ Tienda: http://localhost:${PORT}/tienda\n🌐 Dominio: casaelegida.com.ar\n`));
+    app.listen(PORT, () => console.log(`\n🏪 ESENCIA CURVY - http://localhost:${PORT}\n📊 Panel Admin: http://localhost:${PORT}/admin\n🛍️ Tienda: http://localhost:${PORT}/tienda\n🌐 Dominio: https://esencia-curvy-production.up.railway.app/tienda\n`));
 }
 start();
 process.on('SIGTERM', () => { pool.end(); process.exit(0); });
