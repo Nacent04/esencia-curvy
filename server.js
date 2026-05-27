@@ -568,13 +568,13 @@ app.post('/stock-bajo', async (req, res) => {
 });
 app.post('/subir-imagen', upload.single('foto'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No imagen' });
-    const r = await cloudinary.uploader.upload(req.file.path, { folder: 'casa-elegida' });
+    const r = await cloudinary.uploader.upload(req.file.path, { folder: 'esencia-curvy' });
     fs.unlinkSync(req.file.path);
     res.json({ url: r.secure_url });
 });
 app.post('/subir-logo', adminMiddleware('config'), upload.single('logo'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No imagen' });
-    const r = await cloudinary.uploader.upload(req.file.path, { folder: 'casa-elegida' });
+    const r = await cloudinary.uploader.upload(req.file.path, { folder: 'esencia-curvy' });
     fs.unlinkSync(req.file.path);
     await setConfig('logo', r.secure_url);
     await logActividad('Admin', 'SUBIR_LOGO', 'Logo actualizado', req);
