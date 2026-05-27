@@ -193,15 +193,15 @@ async function initDB() {
 }
 
 const configInicial = {
-    logo: '', empresa: JSON.stringify({ nombre: "Casa Elegida", telefono: "", email: "casaelegida20@gmail.com", direccion: "" }),
+    logo: '', empresa: JSON.stringify({ nombre: "ESENCIA CURVY", telefono: "", email: "casaelegida20@gmail.com", direccion: "" }),
     horarios: JSON.stringify({ lunesViernes: "9:00 - 13:00 y 17:00 - 20:00", sabados: "9:00 - 13:00", domingos: "Cerrado" }),
     redes: JSON.stringify({ instagram: "", facebook: "", tiktok: "", whatsapp: "" }),
     pagos: JSON.stringify({ alias: "", cbu: "", banco: "", titular: "" }),
     mayorista: JSON.stringify({ habilitado: false, modo: "cantidad", valorCantidad: 3, valorMonto: 80000 }),
-    tienda: JSON.stringify({ habilitada: true, titulo: "Casa Elegida", mensajeBienvenida: "Calidad y confort", retiroLocal: true }),
+    tienda: JSON.stringify({ habilitada: true, titulo: "ESENCIA CURVY", mensajeBienvenida: "Calidad y confort", retiroLocal: true }),
     diseno: JSON.stringify({ colorPrimario: "#1a1a1a", colorSecundario: "#c9a96e", colorFondo: "#fafafa", colorTexto: "#1a1a1a" }),
     registroObligatorio: 'true',
-    heroConfig: JSON.stringify({ titulo: "Casa Elegida", subtitulo: "Blanquería premium", badge: "✦ Precios especiales" }),
+    heroConfig: JSON.stringify({ titulo: "ESENCIA CURVY", subtitulo: "Blanquería premium", badge: "✦ Precios especiales" }),
     seccionesDestacadas: JSON.stringify([{ id: "dest-1", titulo: "Novedades", tipo: "categoria", valor: "Toallones", limite: 4 }]),
     plantilla: 'moderna',
     icono: 'store'
@@ -246,7 +246,7 @@ async function setConfig(k, v) {
 
 async function getEmpresa() {
     const c = await getConfig();
-    return typeof c.empresa === 'string' ? JSON.parse(c.empresa) : (c.empresa || { nombre: 'Casa Elegida' });
+    return typeof c.empresa === 'string' ? JSON.parse(c.empresa) : (c.empresa || { nombre: 'ESENCIA CURVY' });
 }
 
 async function logActividad(admin, accion, detalles, req) {
@@ -482,7 +482,7 @@ app.post('/auth/recuperar', async (req, res) => {
         if (!u) return res.status(404).json({ error: 'Email no encontrado' });
         const pin = Math.floor(100000 + Math.random()*900000).toString();
         await pool.query('UPDATE usuarios SET "resetPin"=$1, "resetPinExpires"=$2 WHERE id=$3', [pin, Date.now()+3600000, u.id]);
-        await enviarEmail(u.email, 'Recuperación', `<h1>Casa Elegida</h1><p>PIN: <strong>${pin}</strong></p>`);
+        await enviarEmail(u.email, 'Recuperación', `<h1>ESENCIA CURVY</h1><p>PIN: <strong>${pin}</strong></p>`);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -699,7 +699,7 @@ app.post('/tienda/confirmar-pedido', async (req, res) => {
         await pool.query('UPDATE pedidos SET estado=$1,pin=$2,"ventaId"=$3 WHERE id=$4', ['confirmado', pin, vid, p.id]);
         await logActividad('Admin', 'CONFIRMAR_PEDIDO', `Pedido ${p.id}`, req);
         const cliente = JSON.parse(p.cliente||'{}');
-        if (cliente.email) await enviarEmail(cliente.email, `Pedido #${p.id} confirmado`, `<h1>Casa Elegida</h1><h2>¡Pedido confirmado!</h2><p>Tu PIN de retiro: <strong>${pin}</strong></p><p>Total: ${fmt.format(p.total)}</p>`);
+        if (cliente.email) await enviarEmail(cliente.email, `Pedido #${p.id} confirmado`, `<h1>ESENCIA CURVY</h1><h2>¡Pedido confirmado!</h2><p>Tu PIN de retiro: <strong>${pin}</strong></p><p>Total: ${fmt.format(p.total)}</p>`);
         res.json({ success: true, ventaId: vid, pin });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -957,7 +957,7 @@ app.post('/admin/backup/crear-total', adminMiddleware(), async (req, res) => {
         fs.mkdirSync(backupPath, { recursive: true });
         console.log('📦 Iniciando backup total:', backupId);
         const datos = {
-            metadata: { id: backupId, fecha: new Date().toISOString(), version: '2.0', tipo: 'total', sistema: 'Casa Elegida POS Master' },
+            metadata: { id: backupId, fecha: new Date().toISOString(), version: '2.0', tipo: 'total', sistema: 'ESENCIA CURVY POS Master' },
             productos: await exportarTabla('productos'), variantes: await exportarTabla('variantes'),
             categorias: await exportarTabla('categorias'), ventas: await exportarTabla('ventas'),
             pedidos: await exportarTabla('pedidos'), usuarios: await exportarTabla('usuarios'),
@@ -1062,7 +1062,7 @@ app.use((err, req, res, next) => { console.error(err); res.status(500).json({ er
 
 async function start() {
     await initDB(); await initConfig(); await initMetodosEnvio(); await initAdmin();
-    app.listen(PORT, () => console.log(`\n🏪 CASA ELEGIDA - http://localhost:${PORT}\n📊 Panel Admin: http://localhost:${PORT}/admin\n🛍️ Tienda: http://localhost:${PORT}/tienda\n🌐 Dominio: casaelegida.com.ar\n`));
+    app.listen(PORT, () => console.log(`\n🏪 ESENCIA CURVY - http://localhost:${PORT}\n📊 Panel Admin: http://localhost:${PORT}/admin\n🛍️ Tienda: http://localhost:${PORT}/tienda\n🌐 Dominio: casaelegida.com.ar\n`));
 }
 start();
 process.on('SIGTERM', () => { pool.end(); process.exit(0); });
