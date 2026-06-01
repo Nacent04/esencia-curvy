@@ -338,6 +338,7 @@ function tab(t) {
     else if (t==='p') { container.className='layout'; container.innerHTML=renderPaginaPedidosWeb(); cartPanel.classList.add('hidden'); cargarPedidosTienda(); }
     else if (t==='perfiles') { container.className='layout'; container.innerHTML=renderPaginaPerfiles(); cartPanel.classList.add('hidden'); cargarPerfiles(); }
     else if (t==='logs') { container.className='layout'; container.innerHTML=renderPaginaLogs(); cartPanel.classList.add('hidden'); cargarLogs(); }
+    else if (t==='clientes') { container.className='layout'; container.innerHTML=renderPaginaClientes(); cartPanel.classList.add('hidden'); cargarClientes(); }
     else if (t==='web') { container.className='layout'; container.innerHTML=renderPaginaEdicionWeb(); cartPanel.classList.add('hidden'); }
     else if (t==='backup') { container.className='layout'; container.innerHTML=renderPaginaBackup(); cartPanel.classList.add('hidden'); setTimeout(cargarHistorialBackups,100); }
     document.querySelectorAll('.nav-tabs .tab-btn').forEach(b => b.classList.remove('active'));
