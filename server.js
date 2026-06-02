@@ -773,6 +773,13 @@ app.post('/admin/estadisticas-avanzadas', adminMiddleware('dashboard'), async (r
     });
 });
 
+app.post('/admin/listar-clientes', adminMiddleware('clientes'), async (req, res) => {
+    try {
+        const clientes = (await pool.query('SELECT id, nombre, apellido, email, telefono, dni, provincia, localidad FROM usuarios WHERE rol = $1 ORDER BY "fechaRegistro" DESC LIMIT 200', ['cliente'])).rows;
+        res.json({ lista: clientes });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/admin/buscar-clientes', adminMiddleware(), async (req, res) => {
     const q = `%${req.body.query||''}%`;
     const clientes = (await pool.query('SELECT id, nombre, apellido, email, telefono, dni FROM usuarios WHERE nombre ILIKE $1 OR apellido ILIKE $1 OR email ILIKE $1 OR dni ILIKE $1 LIMIT 20', [q])).rows;
