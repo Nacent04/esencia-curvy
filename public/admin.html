@@ -344,7 +344,17 @@ function tab(t) {
     document.querySelectorAll('.nav-tabs .tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`t-${t}`)?.classList.add('active');
 }
-    function renderPaginaVentas() { return `<div class="panel"><div id="estado-caja"></div><div style="display:flex;gap:12px;margin-bottom:24px"><input type="text" id="buscador" placeholder="🔍 Buscar..." onkeyup="buscarProductos()" style="flex:1"><button onclick="abrirBuscadorClientes()" class="tab-btn btn-info"><i class="fas fa-search"></i> Clientes</button></div><div id="grid-prods" class="grid"></div></div>`; }
+function renderPaginaVentas() { 
+    return `<div class="panel">
+        <div id="estado-caja"></div>
+        <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+            <input type="text" id="buscador" placeholder="🔍 Buscar..." onkeyup="buscarProductos()" style="flex:1;min-width:200px">
+            <button onclick="abrirBuscadorClientes()" class="tab-btn btn-info"><i class="fas fa-search"></i> Clientes</button>
+            <button onclick="agregarProductoManual()" class="tab-btn btn-warning"><i class="fas fa-hand-paper"></i> Manual</button>
+        </div>
+        <div id="grid-prods" class="grid"></div>
+    </div>`; 
+}
 function renderPaginaListadoVentas() { return `<div class="panel"><h3 style="display:flex;justify-content:space-between"><span><i class="fas fa-history"></i> Historial</span><button onclick="exportarVentasCSV()" class="tab-btn btn-excel"><i class="fas fa-file-csv"></i> Exportar</button></h3><div class="ventas-buscador"><input type="text" id="ventas-buscador" placeholder="🔍 Buscar..." onkeyup="filtrarVentas()"></div><table style="width:100%"><thead><tr><th>Fecha/ID</th><th>Cliente</th><th>Items</th><th>Total</th><th></th></tr></thead><tbody id="lista-ventas-body"></tbody></table></div>`; }
 function renderPaginaGestionStock() { return `<div class="panel"><div style="display:flex;gap:12px;margin-bottom:24px"><button onclick="nuevoProd()" class="tab-btn"><i class="fas fa-plus"></i> Nuevo</button><button onclick="cargarYRenderAdmin()" class="tab-btn"><i class="fas fa-sync-alt"></i> Recargar</button><button onclick="verStockBajo()" class="tab-btn btn-warning"><i class="fas fa-exclamation-triangle"></i> Stock Bajo</button><button onclick="abrirModalCategorias()" class="tab-btn btn-info"><i class="fas fa-folder-tree"></i> Categorías</button></div><div id="admin-lista"></div></div>`; }
 function renderPaginaDashboard() { return `<div class="panel"><h3><i class="fas fa-chart-pie"></i> Panel de Control</h3><div id="estadisticas-avanzadas"></div><div class="charts-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;margin:20px 0"><div class="config-section"><h4><i class="fas fa-chart-bar"></i> Ventas por Día</h4><canvas id="chart-ventas-dia"></canvas></div><div class="config-section"><h4><i class="fas fa-chart-pie"></i> Productos Más Vendidos</h4><canvas id="chart-productos-top"></canvas></div><div class="config-section"><h4><i class="fas fa-chart-line"></i> Métodos de Pago</h4><canvas id="chart-metodos-pago"></canvas></div><div class="config-section"><h4><i class="fas fa-chart-doughnut"></i> Ventas por Categoría</h4><canvas id="chart-categorias"></canvas></div></div><div id="estadisticas-vendedor" class="config-section" style="margin-top:24px"><h4><i class="fas fa-users"></i> Rendimiento por Vendedor</h4></div><div class="config-section" style="margin-top:24px"><h4><i class="fas fa-history"></i> Historial de Cajas <input type="date" id="cajas-desde" style="width:140px;margin-left:12px" onchange="cargarHistorialCajas()"><input type="date" id="cajas-hasta" style="width:140px;margin-left:8px" onchange="cargarHistorialCajas()"></h4><div id="historial-cajas"></div></div></div>`; }
@@ -565,6 +575,163 @@ function manejarDropRestore(e){e.preventDefault();e.target.classList.remove('dra
 function procesarArchivoRestore(i){const f=i.files[0];if(f)procesarArchivoRestoreDirecto(f);}
 function procesarArchivoRestoreDirecto(f){archivoRestoreActual=f;document.getElementById('btn-restaurar').style.display='block';mostrarToast('✅ Archivo listo');}
 async function confirmarRestauracionTotal(){if(!archivoRestoreActual){mostrarToast('Seleccioná archivo',true);return;}if(!confirm('⚠️ ¿REEMPLAZAR TODO?'))return;if(!confirm('¿ÚLTIMA CONFIRMACIÓN?'))return;const p=prompt('Contraseña admin:');if(!p)return;const fd=new FormData();fd.append('backup',archivoRestoreActual);fd.append('password',p);try{await safeFetch('/admin/backup/restaurar-desde-archivo',{method:'POST',body:fd});mostrarToast('✅ Restaurado');alert('Recargando...');location.reload();}catch(e){mostrarToast('Error: '+e.message,true);}}
+
+function renderPaginaClientes() { 
+    return `<div class="panel">
+        <h3 style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px">
+            <span><i class="fas fa-users"></i> Clientes Registrados</span>
+            <input type="text" id="clientes-buscador" placeholder="🔍 Buscar cliente..." onkeyup="filtrarClientes()" style="padding:10px 16px;border-radius:20px;border:1px solid #e2e8f0;width:250px">
+        </h3>
+        <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:separate;border-spacing:0">
+                <thead>
+                    <tr style="background:#FEFAE0">
+                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">CLIENTE</th>
+                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">EMAIL</th>
+                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">TELÉFONO</th>
+                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">DNI</th>
+                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">UBICACIÓN</th>
+                        <th style="padding:14px 16px;text-align:right;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-clientes-body">
+                    <tr><td colspan="6" style="text-align:center;padding:40px">Cargando clientes...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>`; 
+}
+
+let todosClientes = [];
+
+async function cargarClientes() {
+    try {
+        const d = await safeFetch('/admin/listar-clientes', { method: 'POST' });
+        todosClientes = d.lista || [];
+        renderizarTablaClientes(todosClientes);
+    } catch(e) {
+        document.getElementById('lista-clientes-body').innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444">Error al cargar clientes</td></tr>';
+    }
+}
+
+function filtrarClientes() {
+    const q = document.getElementById('clientes-buscador')?.value?.toLowerCase() || '';
+    const filtrados = todosClientes.filter(c => 
+        (c.nombre || '').toLowerCase().includes(q) ||
+        (c.apellido || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        (c.dni || '').toLowerCase().includes(q) ||
+        (c.telefono || '').toLowerCase().includes(q)
+    );
+    renderizarTablaClientes(filtrados);
+}
+
+function renderizarTablaClientes(lista) {
+    const tbody = document.getElementById('lista-clientes-body');
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#8B7355">No se encontraron clientes</td></tr>';
+        return;
+    }
+    tbody.innerHTML = lista.map((c, i) => `
+        <tr style="border-bottom:1px solid #FAEDCD;background:${i%2===0?'#ffffff':'#FEFAE0'};transition:background 0.2s" 
+            onmouseover="this.style.background='#FAEDCD'" 
+            onmouseout="this.style.background='${i%2===0?'#ffffff':'#FEFAE0'}'">
+            <td style="padding:14px 16px"><strong style="font-size:14px">${escapeHtml(c.nombre||'')} ${escapeHtml(c.apellido||'')}</strong></td>
+            <td style="padding:14px 16px;font-size:13px">${escapeHtml(c.email||'-')}</td>
+            <td style="padding:14px 16px;font-size:13px">${escapeHtml(c.telefono||'-')}</td>
+            <td style="padding:14px 16px;font-size:13px">${escapeHtml(c.dni||'-')}</td>
+            <td style="padding:14px 16px;font-size:12px;color:#8B7355">${[c.localidad, c.provincia].filter(Boolean).join(', ')||'-'}</td>
+            <td style="padding:14px 16px;display:flex;gap:8px;justify-content:flex-end">
+                <button onclick="verHistorialClienteCompleto('${c.id}','${escapeHtml(c.nombre||'')} ${escapeHtml(c.apellido||'')}')" class="btn-print btn-info" style="padding:8px 12px;font-size:11px"><i class="fas fa-history"></i> Historial</button>
+                <button onclick="eliminarCliente('${c.id}','${escapeHtml(c.nombre||'')} ${escapeHtml(c.apellido||'')}')" class="btn-print" style="background:#ef4444;padding:8px 12px;font-size:11px"><i class="fas fa-trash"></i> Eliminar</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+let productoManualIdCounter = 0;
+
+function agregarProductoManual() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:500px">
+            <div class="modal-header">
+                <h3><i class="fas fa-hand-paper"></i> Producto Manual</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom:16px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">📝 Nombre del artículo</label>
+                    <input type="text" id="manual-nombre" placeholder="Ej: Vestido negro" style="font-size:16px">
+                </div>
+                <div style="margin-bottom:16px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">💰 Precio unitario</label>
+                    <input type="number" id="manual-precio" value="0" step="0.01" style="font-size:16px">
+                </div>
+                <div style="margin-bottom:16px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">📦 Cantidad</label>
+                    <div class="cantidad-selector" style="justify-content:flex-start">
+                        <button class="cantidad-btn" onclick="cambiarCantidadManual(-1)">−</button>
+                        <input type="number" id="manual-cantidad" value="1" min="1" class="cantidad-input">
+                        <button class="cantidad-btn" onclick="cambiarCantidadManual(1)">+</button>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px">
+                    <label style="font-weight:600;display:block;margin-bottom:6px">🎨 Variante (opcional)</label>
+                    <input type="text" id="manual-variante" placeholder="Ej: Color azul, Talle M" style="font-size:14px">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="this.closest('.modal').remove()" class="tab-btn">Cancelar</button>
+                <button onclick="confirmarProductoManual()" class="btn-confirm" style="width:auto;padding:12px 32px">
+                    <i class="fas fa-cart-plus"></i> Agregar al Pedido
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function cambiarCantidadManual(delta) {
+    const input = document.getElementById('manual-cantidad');
+    if (!input) return;
+    let val = parseInt(input.value) || 1;
+    val = Math.max(1, val + delta);
+    input.value = val;
+}
+
+function confirmarProductoManual() {
+    const nombre = document.getElementById('manual-nombre').value.trim();
+    const precio = parseFloat(document.getElementById('manual-precio').value);
+    const cantidad = parseInt(document.getElementById('manual-cantidad').value);
+    const variante = document.getElementById('manual-variante').value.trim();
+    
+    if (!nombre) { mostrarToast('❌ Ingresá el nombre del artículo', true); return; }
+    if (!precio || precio <= 0) { mostrarToast('❌ Ingresá un precio válido', true); return; }
+    if (!cantidad || cantidad < 1) { mostrarToast('❌ Ingresá una cantidad válida', true); return; }
+    
+    const idManual = 'MAN-' + Date.now() + '-' + (++productoManualIdCounter);
+    
+    carrito.push({
+        pId: idManual,
+        pNom: nombre,
+        vNom: variante || 'Único',
+        vFoto: '',
+        precio: precio,
+        precioMayor: 0,
+        cant: cantidad,
+        esManual: true
+    });
+    
+    calcularPreciosMayoristaEnVivo();
+    renderCart();
+    localStorage.setItem('pos_carrito', JSON.stringify(carrito));
+    
+    document.querySelector('.modal.active')?.remove();
+    mostrarToast('✅ Producto manual agregado');
+}
+
 
 function toggleThemePanel(){const p=document.getElementById('theme-panel');if(p)p.style.display=p.style.display==='block'?'none':'block';}
 function toggleDarkMode(){document.body.classList.toggle('dark-mode');localStorage.setItem('darkMode',document.body.classList.contains('dark-mode'));}
