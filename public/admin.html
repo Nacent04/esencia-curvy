@@ -401,7 +401,7 @@ function renderAdmin(){
     productos.forEach(p=>{
         if(!p.variantes?.length) p.variantes=[{nombre:"Unica",stock:0,foto:""}];
         const card=document.createElement('div'); card.className='producto-card'; card.setAttribute('data-id',p.id);
-        card.innerHTML=`<div class="producto-header"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><div class="producto-imagen"><img src="${sanitizarUrl(p.variantes[0]?.foto)}" style="width:100px;height:100px;object-fit:cover;border-radius:20px" onerror="this.src='https://via.placeholder.com/100'"></div><div class="producto-info"><div style="display:flex;gap:12px;align-items:center;margin-bottom:12px"><input type="text" id="en-${p.id}" value="${escapeHtml(p.nombre)}" placeholder="Nombre" style="flex:1;padding:14px;border-radius:16px;border:2px solid #e2e8f0;font-size:16px;font-weight:600"><button onclick="saveEdit('${p.id}')" class="btn-confirm" style="width:auto;padding:14px 24px"><i class="fas fa-save"></i> Guardar</button><button onclick="eliminarProducto('${p.id}')" class="tab-btn btn-danger" style="padding:14px"><i class="fas fa-trash"></i></button></div><div class="form-row"><div><label>💰 Precio</label><input type="number" id="ep-${p.id}" value="${p.precio}" step="0.01"></div><div><label>🏷️ Mayorista</label><input type="number" id="epm-${p.id}" value="${p.precioMayor||0}" step="0.01"></div></div><div class="form-row"><div><label>📁 Categoría</label><select id="cat-${p.id}" style="border-radius:16px" onchange="actualizarSubcategorias('${p.id}')"><option value="">Sin categoría</option>${categorias.map(c=>`<option value="${c.id}" ${p.categoriaId==c.id?'selected':''}>${escapeHtml(c.nombre)}</option>`).join('')}</select></div><div><label>📂 Subcategoría</label><select id="subcat-${p.id}" style="border-radius:16px"><option value="">Sin subcategoría</option>${(()=>{const cat=categorias.find(c=>c.id==p.categoriaId);if(cat?.subcategorias?.length)return cat.subcategorias.map(s=>`<option value="${escapeHtml(s)}" ${p.subcategoria==s?'selected':''}>${escapeHtml(s)}</option>`).join('');return'';})()}</select></div></div><div style="margin-top:8px"><label>📝 Descripción</label><textarea id="desc-${p.id}" rows="2" style="border-radius:16px">${escapeHtml(p.descripcion||'')}</textarea></div><button onclick="toggleVariantes('${p.id}')" id="btn-toggle-${p.id}" class="btn-toggle-variantes"><i class="fas fa-layer-group"></i> Variantes (${p.variantes.length}) <i class="fas fa-chevron-down"></i></button></div></div><div id="variantes-panel-${p.id}" class="variantes-panel" style="display:none"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h4 style="margin:0;color:#6366f1">Variantes (${p.variantes.length})</h4><div style="display:flex;gap:8px"><button onclick="aplicarStockATodas('${p.id}')" class="tab-btn" style="padding:8px 16px;font-size:12px"><i class="fas fa-copy"></i> Mismo stock</button><button onclick="agregarVariante('${p.id}')" class="tab-btn btn-success" style="padding:8px 16px;font-size:12px"><i class="fas fa-plus"></i> Agregar</button>
+        card.innerHTML=`<div class="producto-header"><div class="drag-handle"><i class="fas fa-grip-vertical"></i></div><div class="producto-imagen"><img src="${sanitizarUrl(p.variantes[0]?.foto)}" style="width:100px;height:100px;object-fit:cover;border-radius:20px" onerror="this.src='https://via.placeholder.com/100'"></div><div class="producto-info"><div style="display:flex;gap:12px;align-items:center;margin-bottom:12px"><input type="text" id="en-${p.id}" value="${escapeHtml(p.nombre)}" placeholder="Nombre" style="flex:1;padding:14px;border-radius:16px;border:2px solid #e2e8f0;font-size:16px;font-weight:600"><button onclick="saveEdit('${p.id}')" class="btn-confirm" style="width:auto;padding:14px 24px"><i class="fas fa-save"></i> Guardar</button><button onclick="eliminarProducto('${p.id}')" class="tab-btn btn-danger" style="padding:14px"><i class="fas fa-trash"></i></button></div><div class="form-row"><div><label>💰 Precio</label><input type="number" id="ep-${p.id}" value="${p.precio}" step="0.01"></div><div><label>🏷️ Mayorista</label><input type="number" id="epm-${p.id}" value="${p.precioMayor||0}" step="0.01"></div></div><div class="form-row"><div><label>📁 Categoría</label><select id="cat-${p.id}" style="border-radius:16px" onchange="actualizarSubcategorias('${p.id}')"><option value="">Sin categoría</option>${categorias.map(c=>`<option value="${c.id}" ${p.categoriaId==c.id?'selected':''}>${escapeHtml(c.nombre)}</option>`).join('')}</select></div><div><label>📂 Subcategoría</label><select id="subcat-${p.id}" style="border-radius:16px"><option value="">Sin subcategoría</option>${(()=>{const cat=categorias.find(c=>c.id==p.categoriaId);if(cat?.subcategorias?.length)return cat.subcategorias.map(s=>`<option value="${escapeHtml(s)}" ${p.subcategoria==s?'selected':''}>${escapeHtml(s)}</option>`).join('');return'';})()}</select></div></div><div style="margin-top:8px"><label>📝 Descripción</label><textarea id="desc-${p.id}" rows="2" style="border-radius:16px">${escapeHtml(p.descripcion||'')}</textarea></div><button onclick="toggleVariantes('${p.id}')" id="btn-toggle-${p.id}" class="btn-toggle-variantes"><i class="fas fa-layer-group"></i> Variantes (${p.variantes.length}) <i class="fas fa-chevron-down"></i></button></div></div><div id="variantes-panel-${p.id}" class="variantes-panel" style="display:none"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h4 style="margin:0;color:#6366f1">Variantes (${p.variantes.length})</h4><div style="display:flex;gap:8px"><button onclick="aplicarStockATodas('${p.id}')" class="tab-btn" style="padding:8px 16px;font-size:12px"><i class="fas fa-copy"></i> Mismo stock</button><button onclick="agregarVariante('${p.id}')" class="tab-btn btn-success" style="padding:8px 16px;font-size:12px"><i class="fas fa-plus"></i> Agregar</button><button onclick="asignarFotoPorColor('${p.id}')" class="tab-btn" style="padding:8px 16px;font-size:12px;background:#D4A373;color:white"><i class="fas fa-image"></i> Foto x Color</button>
 <button onclick="generarVariantesColorTalle('${p.id}')" class="tab-btn" style="padding:8px 16px;font-size:12px;background:#D4A373;color:white"><i class="fas fa-magic"></i> Generar</button></div></div><div id="variantes-container-${p.id}" style="display:flex;flex-direction:column;gap:12px">${p.variantes.map((v,i)=>`<div class="variante-item"><div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><img src="${sanitizarUrl(v.foto)}" id="img-var-${p.id}-${i}" style="width:50px;height:50px;border-radius:12px;object-fit:cover;cursor:pointer" onerror="this.src='https://via.placeholder.com/50'" onclick="document.getElementById('input-var-foto-${p.id}-${i}').click()"><input type="file" id="input-var-foto-${p.id}-${i}" accept="image/*" style="display:none" onchange="subirFotoVariante(this,'${p.id}',${i})"></div><div style="flex:1"><input type="text" id="vn-${p.id}-${i}" value="${escapeHtml(v.nombre)}" style="padding:10px;border-radius:12px"></div><div style="width:80px"><input type="number" id="vs-${p.id}-${i}" value="${v.stock}" min="0" style="padding:10px;border-radius:12px;text-align:center"></div>${p.variantes.length>1?`<button onclick="eliminarVariante('${p.id}',${i})" style="background:#fee2e2;color:#ef4444;border:none;padding:8px 12px;border-radius:12px;cursor:pointer"><i class="fas fa-trash"></i></button>`:''}</div>`).join('')}</div></div>`;
         a.appendChild(card);
     });
@@ -835,6 +835,96 @@ function aplicarVariantesColorTalle(pid) {
     
     document.querySelector('.modal.active')?.remove();
     mostrarToast(`✅ ${p.variantes.length} variantes generadas`);
+}
+
+function asignarFotoPorColor(pid) {
+    const p = productos.find(x => x.id == pid);
+    if (!p || !p.variantes?.length) return;
+    
+    // Agrupar por color
+    const colores = {};
+    p.variantes.forEach(v => {
+        const partes = v.nombre.split(' - ');
+        const color = partes[1] || v.nombre;
+        if (!colores[color]) colores[color] = [];
+        colores[color].push(v);
+    });
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:600px">
+            <div class="modal-header">
+                <h3><i class="fas fa-image"></i> Asignar Foto por Color</h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color:#8B7355;margin-bottom:16px">Subí una foto para cada color. Se aplicará a todos los talles de ese color.</p>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    ${Object.entries(colores).map(([color, variantes]) => `
+                        <div style="background:#FEFAE0;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+                            <div style="flex:1">
+                                <strong style="color:#4A3728">🎨 ${escapeHtml(color)}</strong>
+                                <div style="font-size:11px;color:#8B7355">${variantes.length} talles</div>
+                            </div>
+                            <img src="${sanitizarUrl(variantes[0].foto)}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;cursor:pointer" 
+                                 onclick="document.getElementById('foto-color-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
+                                 onerror="this.src='https://via.placeholder.com/60'">
+                            <input type="file" id="foto-color-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
+                                   onchange="subirFotoColorMasivo(this, '${pid}', '${escapeHtml(color)}')">
+                            <label class="tab-btn" style="background:#D4A373;color:white;padding:6px 12px;font-size:11px;cursor:pointer" 
+                                   onclick="document.getElementById('foto-color-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()">
+                                📷 Subir
+                            </label>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function subirFotoColorMasivo(input, pid, color) {
+    if (!input.files?.[0]) return;
+    const fd = new FormData();
+    fd.append('foto', input.files[0]);
+    try {
+        const d = await safeFetch('/subir-imagen', { method: 'POST', body: fd });
+        if (d.url) {
+            const p = productos.find(x => x.id == pid);
+            if (!p) return;
+            // Aplicar la foto a todas las variantes de este color
+            p.variantes.forEach(v => {
+                const partes = v.nombre.split(' - ');
+                const vColor = partes[1] || v.nombre;
+                if (vColor === color) {
+                    v.foto = d.url;
+                }
+            });
+            // Regenerar panel de variantes
+            const container = document.getElementById(`variantes-container-${pid}`);
+            if (container) {
+                container.innerHTML = p.variantes.map((v, i) => `
+                    <div class="variante-item">
+                        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                            <img src="${sanitizarUrl(v.foto)}" id="img-var-${pid}-${i}" style="width:50px;height:50px;border-radius:12px;object-fit:cover;cursor:pointer" onerror="this.src='https://via.placeholder.com/50'" onclick="document.getElementById('input-var-foto-${pid}-${i}').click()">
+                            <input type="file" id="input-var-foto-${pid}-${i}" accept="image/*" style="display:none" onchange="subirFotoVariante(this,'${pid}',${i})">
+                        </div>
+                        <div style="flex:1"><input type="text" id="vn-${pid}-${i}" value="${escapeHtml(v.nombre)}" style="padding:10px;border-radius:12px"></div>
+                        <div style="width:80px"><input type="number" id="vs-${pid}-${i}" value="${v.stock}" min="0" style="padding:10px;border-radius:12px;text-align:center"></div>
+                        <button onclick="eliminarVariante('${pid}',${i})" style="background:#fee2e2;color:#ef4444;border:none;padding:8px 12px;border-radius:12px;cursor:pointer"><i class="fas fa-trash"></i></button>
+                    </div>
+                `).join('');
+            }
+            // Actualizar también el modal
+            document.querySelectorAll(`#foto-color-${pid}-${color.replace(/\s/g,'_')}`).forEach(el => {
+                const img = el.parentElement.querySelector('img');
+                if (img) img.src = d.url;
+            });
+            mostrarToast('✅ Foto aplicada a todos los talles');
+        }
+    } catch(e) {}
 }
 
 function toggleThemePanel(){const p=document.getElementById('theme-panel');if(p)p.style.display=p.style.display==='block'?'none':'block';}
