@@ -882,7 +882,6 @@ function asignarFotoPorColor(pid) {
     const p = productos.find(x => x.id == pid);
     if (!p || !p.variantes?.length) return;
     
-    // Agrupar por color
     const colores = {};
     p.variantes.forEach(v => {
         const partes = v.nombre.split(' - ');
@@ -894,29 +893,39 @@ function asignarFotoPorColor(pid) {
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:600px">
+        <div class="modal-content" style="max-width:650px">
             <div class="modal-header">
-                <h3><i class="fas fa-image"></i> Asignar Foto por Color</h3>
+                <h3><i class="fas fa-image"></i> Asignar Fotos por Color</h3>
                 <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="color:#8B7355;margin-bottom:16px">Subí una foto para cada color. Se aplicará a todos los talles de ese color.</p>
-                <div style="display:flex;flex-direction:column;gap:12px">
+                <p style="color:#8B7355;margin-bottom:16px">Subí una foto para PC (800x1000) y otra para Móvil (600x800) por cada color.</p>
+                <div style="display:flex;flex-direction:column;gap:16px">
                     ${Object.entries(colores).map(([color, variantes]) => `
-                        <div style="background:#FEFAE0;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-                            <div style="flex:1">
-                                <strong style="color:#4A3728">🎨 ${escapeHtml(color)}</strong>
-                                <div style="font-size:11px;color:#8B7355">${variantes.length} talles</div>
+                        <div style="background:#FEFAE0;border-radius:12px;padding:12px">
+                            <strong style="color:#4A3728;display:block;margin-bottom:8px">🎨 ${escapeHtml(color)} (${variantes.length} talles)</strong>
+                            <div style="display:flex;gap:16px;align-items:center">
+                                <div style="flex:1;text-align:center">
+                                    <label style="font-size:11px;font-weight:600;display:block;margin-bottom:4px">🖥️ PC (800x1000)</label>
+                                    <img src="${sanitizarUrl(variantes[0].foto)}" style="width:100px;height:125px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD" 
+                                         onclick="document.getElementById('foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
+                                         onerror="this.src='https://via.placeholder.com/100x125/FEFAE0/D4A373?text=PC'">
+                                    <input type="file" id="foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
+                                           onchange="subirFotoColorMasivo(this, '${pid}', '${escapeHtml(color)}', 'pc')">
+                                    <button class="tab-btn" style="padding:4px 10px;font-size:10px;margin-top:4px" 
+                                            onclick="document.getElementById('foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()">📷 Subir PC</button>
+                                </div>
+                                <div style="flex:1;text-align:center">
+                                    <label style="font-size:11px;font-weight:600;display:block;margin-bottom:4px">📱 Móvil (600x800)</label>
+                                    <img src="${sanitizarUrl(variantes[0].foto_mobile || variantes[0].foto)}" style="width:80px;height:107px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD" 
+                                         onclick="document.getElementById('foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
+                                         onerror="this.src='https://via.placeholder.com/80x107/FEFAE0/D4A373?text=MOB'">
+                                    <input type="file" id="foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
+                                           onchange="subirFotoColorMasivo(this, '${pid}', '${escapeHtml(color)}', 'mobile')">
+                                    <button class="tab-btn" style="padding:4px 10px;font-size:10px;margin-top:4px" 
+                                            onclick="document.getElementById('foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()">📷 Subir Móvil</button>
+                                </div>
                             </div>
-                            <img src="${sanitizarUrl(variantes[0].foto)}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;cursor:pointer" 
-                                 onclick="document.getElementById('foto-color-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
-                                 onerror="this.src='https://via.placeholder.com/60'">
-                            <input type="file" id="foto-color-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
-                                   onchange="subirFotoColorMasivo(this, '${pid}', '${escapeHtml(color)}')">
-                            <label class="tab-btn" style="background:#D4A373;color:white;padding:6px 12px;font-size:11px;cursor:pointer" 
-                                   onclick="document.getElementById('foto-color-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()">
-                                📷 Subir
-                            </label>
                         </div>
                     `).join('')}
                 </div>
@@ -926,6 +935,46 @@ function asignarFotoPorColor(pid) {
     document.body.appendChild(modal);
 }
 
+async function subirFotoColorMasivo(input, pid, color, tipo) {
+    if (!input.files?.[0]) return;
+    const fd = new FormData();
+    fd.append('foto', input.files[0]);
+    try {
+        const d = await safeFetch('/subir-imagen', { method: 'POST', body: fd });
+        if (d.url) {
+            const p = productos.find(x => x.id == pid);
+            if (!p) return;
+            p.variantes.forEach(v => {
+                const partes = v.nombre.split(' - ');
+                const vColor = partes[1] || v.nombre;
+                if (vColor === color) {
+                    if (tipo === 'pc') {
+                        v.foto = d.url;
+                    } else {
+                        v.foto_mobile = d.url;
+                    }
+                }
+            });
+            // Regenerar panel
+            const container = document.getElementById(`variantes-container-${pid}`);
+            if (container) {
+                container.innerHTML = p.variantes.map((v, i) => `
+                    <div class="variante-item">
+                        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                            <img src="${sanitizarUrl(v.foto_mobile || v.foto)}" id="img-var-${pid}-${i}" style="width:50px;height:50px;border-radius:12px;object-fit:cover;cursor:pointer" onerror="this.src='https://via.placeholder.com/50'" onclick="document.getElementById('input-var-foto-${pid}-${i}').click()">
+                            <input type="file" id="input-var-foto-${pid}-${i}" accept="image/*" style="display:none" onchange="subirFotoVariante(this,'${pid}',${i})">
+                        </div>
+                        <div style="flex:1"><input type="text" id="vn-${pid}-${i}" value="${escapeHtml(v.nombre)}" style="padding:10px;border-radius:12px"></div>
+                        <div style="width:80px"><input type="number" id="vs-${pid}-${i}" value="${v.stock}" min="0" style="padding:10px;border-radius:12px;text-align:center"></div>
+                        <button onclick="eliminarVariante('${pid}',${i})" style="background:#fee2e2;color:#ef4444;border:none;padding:8px 12px;border-radius:12px;cursor:pointer"><i class="fas fa-trash"></i></button>
+                    </div>
+                `).join('');
+            }
+            mostrarToast('✅ Foto ' + (tipo==='pc'?'PC':'Móvil') + ' aplicada');
+        }
+    } catch(e) {}
+}
+    
 async function subirFotoColorMasivo(input, pid, color) {
     if (!input.files?.[0]) return;
     const fd = new FormData();
