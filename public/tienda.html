@@ -179,7 +179,7 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
 @media(max-width:768px){.modal-body{grid-template-columns:1fr}.producto-imagen-modal{height:280px}.destacado-card{flex-direction:column;text-align:center;padding:20px}.destacado-img{width:120px;height:120px}.destacado-nombre{font-size:18px}.destacado-precio{font-size:22px}}
 @media(max-width:1024px){.main-content{flex-direction:column}.filters-sidebar{width:100%}.products-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}}
 @media(max-width:768px){.header-main{flex-direction:column;gap:10px}.search-bar{max-width:100%}.header-actions{width:100%;justify-content:center}.hero{padding:24px 12px}.hero-text h2{font-size:22px}.hero-text p{font-size:12px}.products-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}.product-image{height:160px}.product-name{font-size:12px}.price-current{font-size:15px}.btn-add-product{font-size:11px;padding:8px}.modal-body{grid-template-columns:1fr!important}.producto-imagen-modal{height:250px}.cart-sidebar{max-width:100%}.footer-content{grid-template-columns:1fr 1fr;gap:16px}}
-@media(max-width:480px){.header-top-content{font-size:10px;flex-direction:column;text-align:center}.hero{padding:16px 8px}.hero-text h2{font-size:18px}.products-grid{grid-template-columns:repeat(2,1fr);gap:8px}.product-card{border-radius:12px}.product-image{height:140px;object-fit:contain}.product-info{padding:8px}.product-name{font-size:11px}.price-current{font-size:13px}.filters-sidebar{display:none}.category-chip{padding:6px 10px;font-size:10px}.footer-content{grid-template-columns:1fr}.producto-imagen-modal{height:220px;object-fit:contain}.producto-imagen-principal{height:150px;object-fit:contain}}
+@media(max-width:480px){.header-top-content{font-size:10px;flex-direction:column;text-align:center}.hero{padding:16px 8px}.hero-text h2{font-size:18px}.products-grid{grid-template-columns:repeat(2,1fr);gap:8px}.product-card{border-radius:12px}.product-image{width:100%;height:auto;aspect-ratio:3/4;object-fit:cover}.product-info{padding:8px}.product-name{font-size:11px}.price-current{font-size:13px}.filters-sidebar{display:none}.category-chip{padding:6px 10px;font-size:10px}.footer-content{grid-template-columns:1fr}.producto-imagen-modal{width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:8px}.producto-imagen-principal{width:100%;height:auto;aspect-ratio:3/4;object-fit:cover}}
 </style>
 </head>
 <body>
@@ -272,15 +272,133 @@ function logout(){localStorage.removeItem('token');localStorage.removeItem('usua
 function verMisPedidos(){window.location.href='/mis-pedidos'}
 document.addEventListener('click',(e)=>{const menu=document.getElementById('user-menu');const btn=document.getElementById('user-btn');if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target))menu.style.display='none'})
 
-async function cargarDatos(){try{const data=await safeFetch('/tienda/listar-productos',{method:'POST'});productos=data.productos||[];categorias=data.categorias||[];configuracion=data.configuracion||configuracion;
-                                 const esMobile = window.innerWidth <= 768;
-productos.forEach(p => {
-    if (p.variantes) {
-        p.variantes.forEach(v => {
-            if (esMobile && v.foto_mobile) v.foto = v.foto_mobile;
+async function cargarDatos(){
+    try{
+        const data = await safeFetch('/tienda/listar-productos',{method:'POST'});
+        productos = data.productos || [];
+        categorias = data.categorias || [];
+        configuracion = data.configuracion || configuracion;
+        
+        // Cargar foto mobile si corresponde
+        const esMobile = window.innerWidth <= 768;
+        productos.forEach(p => {
+            if (p.variantes) {
+                p.variantes.forEach(v => {
+                    if (esMobile && v.foto_mobile) v.foto = v.foto_mobile;
+                });
+            }
         });
+        
+        // Aplicar colores desde configuración
+        if(configuracion.diseno){
+            const d = configuracion.diseno;
+            const root = document.documentElement.style;
+            if(d.colorPrimario) root.setProperty('--primary', d.colorPrimario);
+            if(d.colorSecundario) root.setProperty('--secondary', d.colorSecundario);
+            if(d.colorFondo) root.setProperty('--bg-light', d.colorFondo);
+            if(d.colorTexto) root.setProperty('--text-dark', d.colorTexto);
+        }
+        
+        // Aplicar tipografía
+        if(configuracion.diseno?.fuentePrincipal){
+            const link = document.createElement('link');
+            link.href = `https://fonts.googleapis.com/css2?family=${configuracion.diseno.fuentePrincipal.replace(/ /g,'+')}:wght@400;600;700;800&display=swap`;
+            link.rel = 'stylesheet';
+            document.head.appendChild(link);
+            document.body.style.fontFamily = `'${configuracion.diseno.fuentePrincipal}', system-ui, sans-serif`;
+        }
+        
+        // Tamaño base
+        if(configuracion.diseno?.tamanoBase){
+            document.documentElement.style.fontSize = configuracion.diseno.tamanoBase;
+        }
+        
+        // Banners
+        const bannersContainer = document.getElementById('banners-container');
+        if(bannersContainer && configuracion.banners?.length){
+            let bannerHTML = configuracion.banners.map(b => `
+                <div style="background:linear-gradient(135deg,var(--primary),var(--secondary));padding:20px;border-radius:16px;display:flex;align-items:center;gap:20px">
+                    ${b.imagen ? `<img src="${b.imagen}" style="width:120px;height:80px;object-fit:cover;border-radius:8px">` : ''}
+                    <div>
+                        <h3 style="color:white;margin:0 0 4px 0">${b.titulo || ''}</h3>
+                        <p style="color:rgba(255,255,255,0.8);margin:0 0 8px 0">${b.subtitulo || ''}</p>
+                        ${b.boton ? `<a href="${b.enlace || '#'}" style="display:inline-block;background:white;color:var(--primary);padding:8px 20px;border-radius:20px;text-decoration:none;font-weight:600">${b.boton}</a>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            bannersContainer.innerHTML = bannerHTML;
+        }
+        
+        // Anuncios
+        while(document.querySelector('.anuncio-flotante')) {
+            document.querySelector('.anuncio-flotante').remove();
+        }
+        if(configuracion.anuncios?.length){
+            configuracion.anuncios.filter(a => a.activo !== false).forEach(a => {
+                const el = document.createElement('div');
+                el.className = 'anuncio-flotante';
+                el.style.cssText = `background:${a.color};color:white;text-align:center;padding:10px;font-weight:600;font-size:14px`;
+                el.textContent = a.texto;
+                if(a.posicion === 'top'){
+                    document.body.insertBefore(el, document.body.firstChild);
+                } else {
+                    document.body.appendChild(el);
+                }
+            });
+        }
+        
+        // Datos de la tienda
+        document.getElementById('tienda-nombre').textContent = configuracion.tienda?.titulo || 'ESENCIA CURVY';
+        document.getElementById('hero-titulo').textContent = configuracion.tienda?.titulo || 'ESENCIA CURVY';
+        document.getElementById('hero-mensaje').textContent = configuracion.tienda?.mensajeBienvenida || '';
+        
+        if(configuracion.logo){
+            document.getElementById('logo-container').innerHTML = `<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;border-radius:0">`;
+            document.getElementById('hero-logo').innerHTML = `<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;opacity:0.25">`;
+        }
+        if(configuracion.redes?.whatsapp){
+            document.getElementById('whatsapp-float').href = `https://wa.me/${configuracion.redes.whatsapp.replace(/\D/g,'')}`;
+        }
+        if(configuracion.empresa?.telefono){
+            document.getElementById('header-phone').textContent = configuracion.empresa.telefono;
+        }
+        if(configuracion.horarios){
+            document.getElementById('header-hours-text').textContent = `L a V ${configuracion.horarios.lunesViernes} | Sáb ${configuracion.horarios.sabados}`;
+        }
+        
+        // Footer
+        document.getElementById('footer-nombre').textContent = configuracion.empresa?.nombre || 'ESENCIA CURVY';
+        if(configuracion.empresa?.direccion){
+            document.getElementById('footer-direccion').innerHTML = `<i class="fas fa-map-marker-alt"></i> ${configuracion.empresa.direccion}`;
+        }
+        if(configuracion.empresa?.telefono){
+            document.getElementById('footer-telefono').innerHTML = `<i class="fas fa-phone"></i> ${configuracion.empresa.telefono}`;
+        }
+        if(configuracion.redes?.whatsapp){
+            document.getElementById('footer-whatsapp').innerHTML = `<i class="fab fa-whatsapp"></i> ${configuracion.redes.whatsapp}`;
+        }
+        if(configuracion.horarios){
+            document.getElementById('footer-horario-lv').innerHTML = `<i class="fas fa-clock"></i> L a V: ${configuracion.horarios.lunesViernes}`;
+            document.getElementById('footer-horario-sab').innerHTML = `<i class="fas fa-clock"></i> Sáb: ${configuracion.horarios.sabados}`;
+        }
+        if(configuracion.redes?.instagram){
+            document.getElementById('footer-instagram').innerHTML = `<a href="https://instagram.com/${configuracion.redes.instagram.replace('@','')}" target="_blank" style="color:white"><i class="fab fa-instagram"></i> @${configuracion.redes.instagram.replace('@','')}</a>`;
+        }
+        if(configuracion.redes?.facebook){
+            document.getElementById('footer-facebook').innerHTML = `<a href="https://facebook.com/${configuracion.redes.facebook}" target="_blank" style="color:white"><i class="fab fa-facebook"></i> /${configuracion.redes.facebook}</a>`;
+        }
+        
+        renderizarCategorias();
+        renderizarSubcategorias();
+        renderizarProductos();
+        cargarCarritoLocal();
+        checkLogin();
+        mostrarProductoDestacado();
+        actualizarWhatsAppPago();
+    } catch(e) {
+        console.error(e);
     }
-});
+}
                                  
 document.getElementById('tienda-nombre').textContent=configuracion.tienda?.titulo||'ESENCIA CURVY';document.getElementById('hero-titulo').textContent=configuracion.tienda?.titulo||'ESENCIA CURVY';document.getElementById('hero-mensaje').textContent=configuracion.tienda?.mensajeBienvenida||'';
 if(configuracion.logo){document.getElementById('logo-container').innerHTML=`<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;border-radius:14px">`;document.getElementById('hero-logo').innerHTML=`<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;opacity:0.25">`}
