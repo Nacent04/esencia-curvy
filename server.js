@@ -50,12 +50,13 @@ async function initDB() {
                 destacado INTEGER DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS variantes (
-                id SERIAL PRIMARY KEY,
-                "productoId" BIGINT NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
-                nombre TEXT NOT NULL,
-                stock INTEGER DEFAULT 0,
-                foto TEXT DEFAULT ''
-            );
+    id SERIAL PRIMARY KEY,
+    "productoId" BIGINT NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+    nombre TEXT NOT NULL,
+    stock INTEGER DEFAULT 0,
+    foto TEXT DEFAULT '',
+    foto_mobile TEXT DEFAULT ''
+);
             CREATE TABLE IF NOT EXISTS categorias (
                 id BIGINT PRIMARY KEY,
                 nombre TEXT NOT NULL,
@@ -190,6 +191,13 @@ async function initDB() {
     } finally {
         client.release();
     }
+}
+
+try {
+    await pool.query('ALTER TABLE variantes ADD COLUMN IF NOT EXISTS foto_mobile TEXT DEFAULT $1', ['']);
+    console.log('✅ Columna foto_mobile verificada');
+} catch(e) {
+    console.log('⚠️ Error al agregar columna:', e.message);
 }
 
 const configInicial = {
@@ -542,7 +550,7 @@ app.post('/guardar-producto', async (req, res) => {
         }
         if (p.variantes?.length) {
             for (const v of p.variantes) {
-                await pool.query('INSERT INTO variantes ("productoId", nombre, stock, foto) VALUES ($1,$2,$3,$4)', [p.id, v.nombre, v.stock||0, v.foto||'']);
+                await pool.query('INSERT INTO variantes ("productoId", nombre, stock, foto, foto_mobile) VALUES ($1,$2,$3,$4,$5)', [p.id, v.nombre, v.stock||0, v.foto||'', v.foto_mobile||'']);
             }
         }
         await logActividad('Admin', 'GUARDAR_PRODUCTO', `Producto: ${p.nombre}`, req);
