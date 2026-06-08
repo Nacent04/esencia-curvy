@@ -273,6 +273,15 @@ function verMisPedidos(){window.location.href='/mis-pedidos'}
 document.addEventListener('click',(e)=>{const menu=document.getElementById('user-menu');const btn=document.getElementById('user-btn');if(menu&&btn&&!btn.contains(e.target)&&!menu.contains(e.target))menu.style.display='none'})
 
 async function cargarDatos(){try{const data=await safeFetch('/tienda/listar-productos',{method:'POST'});productos=data.productos||[];categorias=data.categorias||[];configuracion=data.configuracion||configuracion;
+                                 const esMobile = window.innerWidth <= 768;
+productos.forEach(p => {
+    if (p.variantes) {
+        p.variantes.forEach(v => {
+            if (esMobile && v.foto_mobile) v.foto = v.foto_mobile;
+        });
+    }
+});
+                                 
 document.getElementById('tienda-nombre').textContent=configuracion.tienda?.titulo||'ESENCIA CURVY';document.getElementById('hero-titulo').textContent=configuracion.tienda?.titulo||'ESENCIA CURVY';document.getElementById('hero-mensaje').textContent=configuracion.tienda?.mensajeBienvenida||'';
 if(configuracion.logo){document.getElementById('logo-container').innerHTML=`<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;border-radius:14px">`;document.getElementById('hero-logo').innerHTML=`<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;opacity:0.25">`}
 if(configuracion.redes?.whatsapp){document.getElementById('whatsapp-float').href=`https://wa.me/${configuracion.redes.whatsapp.replace(/\D/g,'')}`}
