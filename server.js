@@ -193,12 +193,14 @@ async function initDB() {
     }
 }
 
-try {
-    await pool.query('ALTER TABLE variantes ADD COLUMN IF NOT EXISTS foto_mobile TEXT DEFAULT $1', ['']);
-    console.log('✅ Columna foto_mobile verificada');
-} catch(e) {
-    console.log('⚠️ Error al agregar columna:', e.message);
-}
+(async () => {
+    try {
+        await pool.query("ALTER TABLE variantes ADD COLUMN IF NOT EXISTS foto_mobile TEXT DEFAULT ''");
+        console.log('✅ Columna foto_mobile verificada');
+    } catch(e) {
+        console.log('⚠️ Error:', e.message);
+    }
+})();
 
 const configInicial = {
     logo: '', empresa: JSON.stringify({ nombre: "ESENCIA CURVY", telefono: "", email: "esenciacurvy26@gmail.com", direccion: "" }),
