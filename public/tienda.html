@@ -5,26 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>ESENCIA CURVY | Ropa en Talles Especiales para Mujer</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-   <style>
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap');
 
 *{margin:0;padding:0;box-sizing:border-box}
-:root{
-    --primary:#4A3728;
-    --primary-light:#6B5344;
-    --secondary:#D4A373;
-    --bg-light:#FEFAE0;
-    --bg-white:#fff;
-    --text-dark:#4A3728;
-    --text-light:#8B7355;
-    --success:#4CAF50;
-    --danger:#F44336;
-    --warning:#FF9800;
-    --shadow-sm:0 2px 8px rgba(212,163,115,0.1);
-    --shadow-md:0 4px 16px rgba(212,163,115,0.15);
-    --shadow-lg:0 8px 32px rgba(74,55,40,0.12);
-    --border-radius:16px
-}
+:root{--primary:#4A3728;--primary-light:#6B5344;--secondary:#D4A373;--bg-light:#FEFAE0;--bg-white:#fff;--text-dark:#4A3728;--text-light:#8B7355;--success:#4CAF50;--danger:#F44336;--warning:#FF9800;--shadow-sm:0 2px 8px rgba(212,163,115,0.1);--shadow-md:0 4px 16px rgba(212,163,115,0.15);--shadow-lg:0 8px 32px rgba(74,55,40,0.12);--border-radius:16px}
 body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--text-dark);line-height:1.5}
 .header{background:var(--bg-white);box-shadow:var(--shadow-sm);position:sticky;top:0;z-index:100}
 .header-top{background:var(--primary);color:white;padding:8px 0;font-size:12px}
@@ -172,9 +157,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
 .whatsapp-comprobante{display:inline-flex;align-items:center;gap:6px;background:#25D366;color:white;padding:10px 16px;border-radius:20px;font-size:12px;text-decoration:none;margin-top:8px;cursor:pointer;font-weight:600}
 .whatsapp-comprobante:hover{background:#1fa855;transform:translateY(-1px)}
 .loader{width:40px;height:40px;border:3px solid #FAEDCD;border-top:3px solid #D4A373;border-radius:50%;animation:spin 0.8s linear infinite;margin:20px auto}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
-
 h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font-family:'Playfair Display',serif}
-
 @media(min-width:640px){.products-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px}.product-image{height:240px}.modal-body{grid-template-columns:1fr 1fr;gap:32px}}
 @media(max-width:768px){.modal-body{grid-template-columns:1fr}.producto-imagen-modal{height:280px}.destacado-card{flex-direction:column;text-align:center;padding:20px}.destacado-img{width:120px;height:120px}.destacado-nombre{font-size:18px}.destacado-precio{font-size:22px}}
 @media(max-width:1024px){.main-content{flex-direction:column}.filters-sidebar{width:100%}.products-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}}
@@ -185,7 +168,7 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
 <body>
 <div class="header-top"><div class="header-top-content"><div><i class="fas fa-truck"></i> Envíos a todo el país | <i class="fas fa-phone"></i> <span id="header-phone"></span></div><div><i class="fas fa-clock"></i> <span id="header-hours-text">Cargando...</span></div></div></div>
 <div class="header"><div class="header-main">
-   <div class="logo">
+<div class="logo">
     <div class="logo-icon" id="logo-container">
         <img src="https://via.placeholder.com/80x80/FEFAE0/D4A373?text=EC" style="width:100%;height:100%;object-fit:contain">
     </div>
@@ -194,9 +177,15 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
         <p id="tienda-slogan">TU ESENCIA NO TIENE TALLE</p>
     </div>
 </div>
+<div class="search-bar"><input type="text" id="search-input" placeholder="🔍 Buscar productos..."><button onclick="buscarProductos()"><i class="fas fa-search"></i></button></div>
+<div class="header-actions">
+    <button class="cart-btn" onclick="toggleCarrito()"><i class="fas fa-shopping-bag"></i> Mi Pedido <span class="cart-count" id="cart-count">0</span></button>
+    <div style="position:relative"><button class="user-btn" id="user-btn" onclick="toggleUserMenu()"><i class="fas fa-user"></i></button><div class="user-menu" id="user-menu"><a href="/perfil"><i class="fas fa-user-circle"></i> Mi Perfil</a><a href="#" onclick="verMisPedidos()"><i class="fas fa-shopping-bag"></i> Mis Pedidos</a><hr><a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a></div></div>
+</div>
 </div></div>
 <div class="categories-nav"><div class="categories-container" id="categories-container"><button class="category-chip active" onclick="filtrarPorCategoria(null)"><i class="fas fa-grid-2"></i> Todos</button></div></div>
-<div class="hero"><div class="hero-content"><div class="hero-text"><h2 id="hero-titulo">ESENCIA CURVY</h2><p id="hero-mensaje">Blanquería premium</p><div class="hero-badge"><i class="fas fa-tags"></i> <span id="mayorista-hero-text">✦ Precios especiales</span></div></div><div id="hero-logo" style="width:180px;height:180px;opacity:0.2;display:flex;align-items:center;justify-content:center"><i class="fas fa-store" style="font-size:80px"></i></div></div></div>
+<div class="hero"><div class="hero-content"><div class="hero-text"><h2 id="hero-titulo">ESENCIA CURVY</h2><p id="hero-mensaje">Ropa en Talles Especiales</p><div class="hero-badge"><i class="fas fa-tags"></i> <span id="mayorista-hero-text">✦ Precios especiales</span></div></div><div id="hero-logo" style="width:180px;height:180px;opacity:0.2;display:flex;align-items:center;justify-content:center"><i class="fas fa-store" style="font-size:80px"></i></div></div></div>
+<div id="banners-container" style="max-width:1400px;margin:12px auto;padding:0 16px;display:flex;flex-direction:column;gap:12px"></div>
 <div id="producto-destacado" style="max-width:1400px;margin:0 auto 24px;padding:0 16px"></div>
 <div class="main-content">
     <div class="filters-sidebar"><div class="filter-section"><h4><i class="fas fa-filter"></i> Subcategorías</h4><div class="subcategory-list" id="subcategory-list"></div></div></div>
@@ -223,11 +212,10 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
 <a href="#" id="whatsapp-float" class="whatsapp-float" target="_blank"><i class="fab fa-whatsapp"></i></a>
 <div id="toast-container"></div>
 
-<!-- ASISTENTE VIRTUAL -->
 <div id="asistente-compra" style="position:fixed;bottom:100px;right:85px;z-index:998">
     <div id="asistente-burbuja" style="background:white;border-radius:20px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.2);max-width:340px;margin-bottom:12px;display:none">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-            <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-size:18px">🤖</div>
+            <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#D4A373,#E0A899);display:flex;align-items:center;justify-content:center;color:white;font-size:18px">🤖</div>
             <div><strong style="font-size:14px">Asistente Virtual</strong><p style="font-size:10px;color:#10b981">● En línea</p></div>
         </div>
         <p id="asistente-mensaje" style="font-size:13px;margin-bottom:12px;line-height:1.5">¡Hola! Soy el asistente de ESENCIA CURVY. ¿En qué puedo ayudarte?</p>
@@ -239,7 +227,7 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
             <button onclick="asistenteResponder('contacto')" style="padding:8px 14px;background:#e0e7ff;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#4f46e5">📞 Contacto</button>
         </div>
     </div>
-    <button id="asistente-btn" onclick="toggleAsistente()" style="width:55px;height:55px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(99,102,241,0.4);transition:all 0.3s;display:flex;align-items:center;justify-content:center">🤖</button>
+    <button id="asistente-btn" onclick="toggleAsistente()" style="width:55px;height:55px;border-radius:50%;background:linear-gradient(135deg,#D4A373,#E0A899);color:white;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(212,163,115,0.4);transition:all 0.3s;display:flex;align-items:center;justify-content:center">🤖</button>
 </div>
 
 <script>
@@ -279,7 +267,6 @@ async function cargarDatos(){
         categorias = data.categorias || [];
         configuracion = data.configuracion || configuracion;
         
-        // Cargar foto mobile si corresponde
         const esMobile = window.innerWidth <= 768;
         productos.forEach(p => {
             if (p.variantes) {
@@ -289,7 +276,6 @@ async function cargarDatos(){
             }
         });
         
-        // Aplicar colores desde configuración
         if(configuracion.diseno){
             const d = configuracion.diseno;
             const root = document.documentElement.style;
@@ -299,7 +285,6 @@ async function cargarDatos(){
             if(d.colorTexto) root.setProperty('--text-dark', d.colorTexto);
         }
         
-        // Aplicar tipografía
         if(configuracion.diseno?.fuentePrincipal){
             const link = document.createElement('link');
             link.href = `https://fonts.googleapis.com/css2?family=${configuracion.diseno.fuentePrincipal.replace(/ /g,'+')}:wght@400;600;700;800&display=swap`;
@@ -308,12 +293,10 @@ async function cargarDatos(){
             document.body.style.fontFamily = `'${configuracion.diseno.fuentePrincipal}', system-ui, sans-serif`;
         }
         
-        // Tamaño base
         if(configuracion.diseno?.tamanoBase){
             document.documentElement.style.fontSize = configuracion.diseno.tamanoBase;
         }
         
-        // Banners
         const bannersContainer = document.getElementById('banners-container');
         if(bannersContainer && configuracion.banners?.length){
             let bannerHTML = configuracion.banners.map(b => `
@@ -329,7 +312,6 @@ async function cargarDatos(){
             bannersContainer.innerHTML = bannerHTML;
         }
         
-        // Anuncios
         while(document.querySelector('.anuncio-flotante')) {
             document.querySelector('.anuncio-flotante').remove();
         }
@@ -347,7 +329,6 @@ async function cargarDatos(){
             });
         }
         
-        // Datos de la tienda
         document.getElementById('tienda-nombre').textContent = configuracion.tienda?.titulo || 'ESENCIA CURVY';
         document.getElementById('hero-titulo').textContent = configuracion.tienda?.titulo || 'ESENCIA CURVY';
         document.getElementById('hero-mensaje').textContent = configuracion.tienda?.mensajeBienvenida || '';
@@ -366,7 +347,6 @@ async function cargarDatos(){
             document.getElementById('header-hours-text').textContent = `L a V ${configuracion.horarios.lunesViernes} | Sáb ${configuracion.horarios.sabados}`;
         }
         
-        // Footer
         document.getElementById('footer-nombre').textContent = configuracion.empresa?.nombre || 'ESENCIA CURVY';
         if(configuracion.empresa?.direccion){
             document.getElementById('footer-direccion').innerHTML = `<i class="fas fa-map-marker-alt"></i> ${configuracion.empresa.direccion}`;
@@ -399,19 +379,6 @@ async function cargarDatos(){
         console.error(e);
     }
 }
-                                 
-if(configuracion.logo){document.getElementById('logo-container').innerHTML=`<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;border-radius:14px">`;document.getElementById('hero-logo').innerHTML=`<img src="${configuracion.logo}" style="width:100%;height:100%;object-fit:contain;opacity:0.25">`}
-if(configuracion.redes?.whatsapp){document.getElementById('whatsapp-float').href=`https://wa.me/${configuracion.redes.whatsapp.replace(/\D/g,'')}`}
-if(configuracion.empresa?.telefono)document.getElementById('header-phone').textContent=configuracion.empresa.telefono;
-if(configuracion.horarios)document.getElementById('header-hours-text').textContent=`L a V ${configuracion.horarios.lunesViernes} | Sáb ${configuracion.horarios.sabados}`;
-document.getElementById('footer-nombre').textContent=configuracion.empresa?.nombre||'ESENCIA CURVY';
-if(configuracion.empresa?.direccion)document.getElementById('footer-direccion').innerHTML=`<i class="fas fa-map-marker-alt"></i> ${configuracion.empresa.direccion}`;
-if(configuracion.empresa?.telefono)document.getElementById('footer-telefono').innerHTML=`<i class="fas fa-phone"></i> ${configuracion.empresa.telefono}`;
-if(configuracion.redes?.whatsapp)document.getElementById('footer-whatsapp').innerHTML=`<i class="fab fa-whatsapp"></i> ${configuracion.redes.whatsapp}`;
-if(configuracion.horarios){document.getElementById('footer-horario-lv').innerHTML=`<i class="fas fa-clock"></i> L a V: ${configuracion.horarios.lunesViernes}`;document.getElementById('footer-horario-sab').innerHTML=`<i class="fas fa-clock"></i> Sáb: ${configuracion.horarios.sabados}`}
-if(configuracion.redes?.instagram)document.getElementById('footer-instagram').innerHTML=`<a href="https://instagram.com/${configuracion.redes.instagram.replace('@','')}" target="_blank" style="color:white"><i class="fab fa-instagram"></i> @${configuracion.redes.instagram.replace('@','')}</a>`;
-if(configuracion.redes?.facebook)document.getElementById('footer-facebook').innerHTML=`<a href="https://facebook.com/${configuracion.redes.facebook}" target="_blank" style="color:white"><i class="fab fa-facebook"></i> /${configuracion.redes.facebook}</a>`;
-renderizarCategorias();renderizarSubcategorias();renderizarProductos();cargarCarritoLocal();checkLogin();mostrarProductoDestacado();actualizarWhatsAppPago()}catch(e){console.error(e)}}
 
 function mostrarProductoDestacado(){const destacado=productos.find(p=>p.destacado)||productos[0];if(!destacado)return;const banner=document.getElementById('producto-destacado');if(banner){banner.innerHTML=`<div class="destacado-card"><img src="${sanitizarUrl(destacado.variantes[0]?.foto)}" class="destacado-img" onerror="this.src='https://via.placeholder.com/140'"><div><div class="destacado-badge">🌟 PRODUCTO DESTACADO</div><h3 class="destacado-nombre">${escapeHtml(destacado.nombre)}</h3><p class="destacado-precio">${fmt.format(destacado.precio)}</p>${destacado.precioMayor>0?`<p style="font-size:14px;color:rgba(255,255,255,0.8);margin-top:-2px">💎 Mayorista: ${fmt.format(destacado.precioMayor)}</p>`:''}<button class="destacado-btn" onclick="abrirModalProducto(${destacado.id})">🛒 Ver producto</button></div></div>`}}
 
@@ -433,16 +400,7 @@ function renderizarProductos(){const g=document.getElementById('products-grid');
 function abrirModalProducto(id){const p=productos.find(x=>x.id==id);if(!p)return;productoModalActual=p;if(!p.variantes?.length)p.variantes=[{nombre:"Unica",stock:0,foto:""}];varianteSeleccionada=p.variantes.findIndex(v=>v.stock>0);if(varianteSeleccionada===-1)varianteSeleccionada=0;document.getElementById('modal-title').textContent=p.nombre;document.getElementById('modal-name').textContent=p.nombre;document.getElementById('modal-description').textContent=p.descripcion||'Producto de alta calidad';actualizarImagenModal();const porColor={};p.variantes.forEach((v,i)=>{const partes=v.nombre.split(' - ');const talle=partes[0]||'';const color=partes[1]||v.nombre;if(!porColor[color])porColor[color]=[];porColor[color].push({...v,index:i,talle:talle})});let variantesHTML='<div style="display:flex;flex-direction:column;gap:12px">';Object.entries(porColor).forEach(([color,talles])=>{variantesHTML+=`<div style="border:2px solid #FAEDCD;border-radius:12px;padding:10px;background:white"><div style="font-weight:700;color:#4A3728;margin-bottom:6px;font-size:13px">🎨 ${escapeHtml(color)}</div><div style="display:flex;flex-wrap:wrap;gap:5px">${talles.map(v=>`<div class="variant-chip ${varianteSeleccionada===v.index?'active':''} ${v.stock===0?'disabled':''}" data-index="${v.index}" style="padding:8px 10px;min-width:45px;text-align:center;font-size:11px" onclick="${v.stock>0?`seleccionarVariante(${v.index})`:''}">${escapeHtml(v.talle)}${v.stock===0?'<div style="font-size:8px;color:#ef4444">Sin stock</div>':''}</div>`).join('')}</div></div>`});variantesHTML+='</div>';document.getElementById('modal-variants').innerHTML=variantesHTML;actualizarInfoVariante();actualizarInfoModal();const rel=getRelacionados(p);const relGrid=document.getElementById('relacionados-grid');if(relGrid&&rel.length){relGrid.innerHTML=rel.map(r=>`<div class="relacionado-item" onclick="abrirModalProducto(${r.id})"><img src="${sanitizarUrl(r.variantes[0]?.foto)}" onerror="this.src='https://via.placeholder.com/80'"><span>${r.nombre.substring(0,25)}</span><small style="color:#D4A373;font-weight:700">${fmt.format(r.precio)}</small></div>`).join('')}document.getElementById('product-modal').classList.add('active')}
 function actualizarImagenModal(){if(!productoModalActual)return;const v=productoModalActual.variantes[varianteSeleccionada];const img=document.getElementById('modal-product-image');if(img){img.style.opacity='0.4';setTimeout(()=>{img.src=sanitizarUrl(v.foto);img.onerror=function(){this.src='https://via.placeholder.com/400?text=Sin+Imagen'};img.style.opacity='1'},150)}}
 function actualizarInfoVariante(){if(!productoModalActual)return;const v=productoModalActual.variantes[varianteSeleccionada];document.getElementById('variant-selected-name').textContent=v.nombre;document.getElementById('variant-selected-stock').textContent=v.stock}
-function seleccionarVariante(i){
-    varianteSeleccionada = i;
-    document.querySelectorAll('.variant-chip').forEach(c => {
-        const idx = parseInt(c.getAttribute('data-index'));
-        c.classList.toggle('active', idx === i);
-    });
-    actualizarImagenModal();
-    actualizarInfoVariante();
-    actualizarInfoModal();
-}
+function seleccionarVariante(i){varianteSeleccionada=i;document.querySelectorAll('.variant-chip').forEach(c=>{const idx=parseInt(c.getAttribute('data-index'));c.classList.toggle('active',idx===i)});actualizarImagenModal();actualizarInfoVariante();actualizarInfoModal()}
 function actualizarInfoModal(){if(!productoModalActual)return;const v=productoModalActual.variantes[varianteSeleccionada];document.getElementById('modal-price').textContent=fmt.format(productoModalActual.precio);document.getElementById('modal-price-mayorista').textContent=(productoModalActual.precioMayor>0&&configuracion.mayorista?.habilitado)?`Mayorista: ${fmt.format(productoModalActual.precioMayor)}`:'';document.getElementById('modal-quantity').max=v.stock;if(parseInt(document.getElementById('modal-quantity').value)>v.stock)document.getElementById('modal-quantity').value=v.stock;const btn=document.getElementById('modal-add-btn');btn.disabled=v.stock===0;btn.innerHTML=v.stock===0?'<i class="fas fa-box"></i> Sin Stock':'<i class="fas fa-cart-plus"></i> Agregar al Pedido'}
 function cambiarCantidadModal(d){const i=document.getElementById('modal-quantity');if(!i)return;const max=productoModalActual?.variantes[varianteSeleccionada]?.stock||1;i.value=Math.max(1,Math.min(parseInt(i.value)+d,max))}
 function agregarDesdeModal(){if(!productoModalActual)return;const v=productoModalActual.variantes[varianteSeleccionada];const cant=parseInt(document.getElementById('modal-quantity').value);if(isNaN(cant)||cant<1)return;if(v.stock<cant){mostrarToast('❌ Stock insuficiente','error');return}const precio=productoModalActual.precio;const existente=carrito.find(i=>i.pId===productoModalActual.id&&i.vNom===v.nombre);if(existente){if(v.stock<existente.cant+cant){mostrarToast('❌ Stock insuficiente','error');return}existente.cant+=cant}else{carrito.push({pId:productoModalActual.id,pNom:productoModalActual.nombre,vNom:v.nombre,vFoto:v.foto,precio:precio,precioOriginal:productoModalActual.precio,cant:cant,esManual:false})}recalcularPreciosMayoristas();guardarCarritoLocal();renderizarCarrito();actualizarProgresoMayorista();cerrarModal();mostrarToast('✅ ¡Agregado al pedido!')}
@@ -451,22 +409,7 @@ function toggleCarrito(){document.getElementById('cart-sidebar').classList.toggl
 function actualizarWhatsAppPago(){const wsp=configuracion.redes?.whatsapp||'';const el=document.getElementById('whatsapp-pago');if(el&&wsp){el.style.display='flex';el.href=`https://wa.me/${wsp.replace(/\D/g,'')}?text=Hola%20Esencia%20Curvy%20adjunto%20comprobante%20de%20pago`}}
 function irACheckout(){if(!carrito.length){mostrarToast('🛒 Carrito vacío','error');return}const token=localStorage.getItem('token');if(configuracion.registroObligatorio&&!token){mostrarToast('🔐 Iniciá sesión para finalizar','error');setTimeout(()=>window.location.href='/login',1500);return}guardarCarritoLocal();window.location.href='/checkout'}
 
-function actualizarProgresoMayorista(){
-    const container=document.getElementById('progreso-mayorista-container');
-    if(!container)return;
-    if(!configuracion.mayorista?.habilitado){container.innerHTML='';return}
-    const cantTotal=carrito.reduce((s,i)=>s+i.cant,0);
-    const montoTotal=carrito.reduce((s,i)=>s+(i.precioOriginal||i.precio)*i.cant,0);
-    const modo=configuracion.mayorista.modo||'cantidad';
-    const metaCant=configuracion.mayorista.valorCantidad||3;
-    const metaMonto=configuracion.mayorista.valorMonto||80000;
-    let progreso=0,metaTexto='',actualTexto='';
-    if(modo==='cantidad'){progreso=Math.min(100,(cantTotal/metaCant)*100);metaTexto=`${metaCant} unid.`;actualTexto=`${cantTotal} unid.`}
-    else if(modo==='monto'){progreso=Math.min(100,(montoTotal/metaMonto)*100);metaTexto=fmt.format(metaMonto);actualTexto=fmt.format(montoTotal)}
-    else{const pC=Math.min(100,(cantTotal/metaCant)*100);const pM=Math.min(100,(montoTotal/metaMonto)*100);progreso=Math.min(pC,pM);metaTexto=`${metaCant} unid. y ${fmt.format(metaMonto)}`;actualTexto=`${cantTotal} unid. y ${fmt.format(montoTotal)}`}
-    if(progreso>=100){container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-completado">🎉 ¡DESCUENTO MAYORISTA APLICADO! 🎉</div></div>`}
-    else{container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-mayorista-header"><span class="progreso-mayorista-titulo">🏷️ Progreso Mayorista</span><span class="progreso-mayorista-porcentaje">${Math.round(progreso)}%</span></div><div class="progreso-barra"><div class="progreso-relleno" style="width:${progreso}%"></div></div><div class="progreso-meta"><span>${actualTexto}</span><span>🎯 ${metaTexto}</span></div></div>`}
-}
+function actualizarProgresoMayorista(){const container=document.getElementById('progreso-mayorista-container');if(!container)return;if(!configuracion.mayorista?.habilitado){container.innerHTML='';return}const cantTotal=carrito.reduce((s,i)=>s+i.cant,0);const montoTotal=carrito.reduce((s,i)=>s+(i.precioOriginal||i.precio)*i.cant,0);const modo=configuracion.mayorista.modo||'cantidad';const metaCant=configuracion.mayorista.valorCantidad||3;const metaMonto=configuracion.mayorista.valorMonto||80000;let progreso=0,metaTexto='',actualTexto='';if(modo==='cantidad'){progreso=Math.min(100,(cantTotal/metaCant)*100);metaTexto=`${metaCant} unid.`;actualTexto=`${cantTotal} unid.`}else if(modo==='monto'){progreso=Math.min(100,(montoTotal/metaMonto)*100);metaTexto=fmt.format(metaMonto);actualTexto=fmt.format(montoTotal)}else{const pC=Math.min(100,(cantTotal/metaCant)*100);const pM=Math.min(100,(montoTotal/metaMonto)*100);progreso=Math.min(pC,pM);metaTexto=`${metaCant} unid. y ${fmt.format(metaMonto)}`;actualTexto=`${cantTotal} unid. y ${fmt.format(montoTotal)}`}if(progreso>=100){container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-completado">🎉 ¡DESCUENTO MAYORISTA APLICADO! 🎉</div></div>`}else{container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-mayorista-header"><span class="progreso-mayorista-titulo">🏷️ Progreso Mayorista</span><span class="progreso-mayorista-porcentaje">${Math.round(progreso)}%</span></div><div class="progreso-barra"><div class="progreso-relleno" style="width:${progreso}%"></div></div><div class="progreso-meta"><span>${actualTexto}</span><span>🎯 ${metaTexto}</span></div></div>`}}
 
 function renderizarCarrito(){const c=document.getElementById('cart-items');const t=document.getElementById('cart-total');const cnt=document.getElementById('cart-count');if(!c||!t||!cnt)return;if(!carrito.length){c.innerHTML='<div style="text-align:center;padding:48px;color:#666"><i class="fas fa-shopping-bag" style="font-size:48px;margin-bottom:12px;opacity:0.4"></i><h3>Tu pedido está vacío</h3><p style="font-size:13px">¡Agregá productos desde la tienda!</p></div>';t.textContent='$0';cnt.textContent='0';return}let h='',total=0,cantTotal=0;carrito.forEach((it,i)=>{total+=it.precio*it.cant;cantTotal+=it.cant;const tieneMayorista=it.precioOriginal&&it.precio<it.precioOriginal;h+=`<div class="cart-product-card"><div style="display:flex;gap:10px"><img src="${sanitizarUrl(it.vFoto)}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;pointer-events:none" onerror="this.src='https://via.placeholder.com/60'" draggable="false"><div style="flex:1"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:13px">${escapeHtml(it.pNom)} ${tieneMayorista?'<span style="background:#FF8F00;color:white;padding:2px 5px;border-radius:10px;font-size:8px">MAY</span>':''}</span><button onclick="eliminarDelCarrito(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:14px"><i class="fas fa-times"></i></button></div><p style="font-size:10px;color:#666;margin:4px 0">${escapeHtml(it.vNom)}</p><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font-weight:700;color:#1a1a1a;font-size:13px">${tieneMayorista?`<span class="precio-tachado">${fmt.format(it.precioOriginal)}</span> <span class="precio-descuento">${fmt.format(it.precio)}</span>`:`${fmt.format(it.precio)}`} c/u</span><div style="display:flex;align-items:center;gap:2px;background:#f5f5f5;border-radius:20px;padding:2px"><button onclick="modificarCantidadCarrito(${i},-1)" style="width:28px;height:28px;border:none;background:white;border-radius:50%;font-weight:700;cursor:pointer;font-size:14px">−</button><span style="min-width:28px;text-align:center;font-weight:700;font-size:13px">${it.cant}</span><button onclick="modificarCantidadCarrito(${i},1)" style="width:28px;height:28px;border:none;background:white;border-radius:50%;font-weight:700;cursor:pointer;font-size:14px">+</button></div></div><div style="text-align:right;margin-top:8px;padding-top:6px;border-top:1px solid #eee;font-size:11px">Subtotal: <strong style="color:#1a1a1a;font-size:14px">${fmt.format(it.precio*it.cant)}</strong></div></div></div></div>`});c.innerHTML=h;t.textContent=fmt.format(total);cnt.textContent=cantTotal;actualizarProgresoMayorista()}
 function modificarCantidadCarrito(i,d){const it=carrito[i];if(!it)return;const nc=it.cant+d;if(nc<=0){eliminarDelCarrito(i);return}if(!it.esManual){const p=productos.find(x=>x.id==it.pId);const v=p?.variantes?.find(x=>x.nombre===it.vNom);if(v&&v.stock<nc){mostrarToast('❌ Stock insuficiente','error');return}}it.cant=nc;recalcularPreciosMayoristas();guardarCarritoLocal();renderizarCarrito();actualizarProgresoMayorista()}
@@ -476,29 +419,9 @@ function guardarCarritoLocal(){const token=localStorage.getItem('token');const k
 function cargarCarritoLocal(){const token=localStorage.getItem('token');const key=token?'carrito_'+token:'carrito_anonimo';const g=localStorage.getItem(key);const ts=localStorage.getItem('carrito_timestamp');if(g&&ts&&(Date.now()-ts<7*24*60*60*1000)){try{carrito=JSON.parse(g);recalcularPreciosMayoristas();renderizarCarrito();actualizarProgresoMayorista()}catch(e){carrito=[]}}}
 
 function toggleAsistente(){const burbuja=document.getElementById('asistente-burbuja');burbuja.style.display=burbuja.style.display==='block'?'none':'block'}
-function asistenteResponder(tema){
-    const msg=document.getElementById('asistente-mensaje');
-    const opciones=document.getElementById('asistente-opciones');
-    switch(tema){
-        case 'comprar':msg.innerHTML='🛒 <strong>Para comprar es muy fácil:</strong><br><br>1️⃣ Navegá por las categorías o buscá un producto<br>2️⃣ Hacé clic en <strong>"Ver"</strong> para ver los detalles<br>3️⃣ Elegí la variante (color, tamaño) y la cantidad<br>4️⃣ Clic en <strong>"Agregar al Pedido"</strong><br>5️⃣ Cuando termines, andá al carrito 🛒<br>6️⃣ Presioná <strong>"Finalizar Compra"</strong><br><br>¿Querés que te ayude con algo más?';break;
-        case 'mayorista':msg.innerHTML='💎 <strong>¡Precios especiales por mayor!</strong><br><br>🏷️ Llevando <strong>cierta cantidad</strong> de productos, accedés a precios mayoristas con descuento.<br><br>📊 En el carrito vas a ver una <strong>barra de progreso</strong> que te muestra cuánto te falta para alcanzar el descuento.<br><br>🎉 ¡Al alcanzarlo, los precios se actualizan automáticamente!';break;
-        case 'envios':msg.innerHTML='🚚 <strong>Información de envíos:</strong><br><br>📦 Hacemos envíos a <strong>todo el país</strong><br>🚀 Despachamos dentro de las <strong>72hs hábiles</strong> (muchas veces antes)<br>📍 Podés elegir entre:<br>• Retiro en nuestro local<br>• Envío a domicilio<br><br>El costo se calcula al finalizar la compra según tu ubicación.';break;
-        case 'pagos':msg.innerHTML='💳 <strong>Medios de pago:</strong><br><br>💵 <strong>Efectivo</strong> (en el local)<br>🏦 <strong>Transferencia bancaria</strong><br><br>⚠️ Los pedidos tienen <strong>24hs hábiles</strong> para ser abonados por transferencia, o serán cancelados.';break;
-        case 'contacto':const ws=configuracion.redes?.whatsapp||'';const tel=configuracion.empresa?.telefono||'';msg.innerHTML='📞 <strong>Contactanos:</strong><br><br>📱 WhatsApp: <strong>'+ws+'</strong><br>📞 Teléfono: <strong>'+tel+'</strong><br>📧 Email: <strong>'+ (configuracion.empresa?.email||'esenciacurvy26@gmail.com') +'</strong><br><br>⏰ Horarios:<br>'+ (configuracion.horarios?.lunesViernes||'9:00 a 18:00') +'<br>¡Te esperamos!';break;
-    }
-    opciones.innerHTML='<button onclick="volverMenuAyuda()" style="padding:8px 14px;background:#6366f1;color:white;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;width:100%">🔙 Volver al menú</button>';
-}
-function volverMenuAyuda(){
-    document.getElementById('asistente-mensaje').innerHTML='¡Hola! Soy el asistente de ESENCIA CURVY. ¿En qué puedo ayudarte?';
-    document.getElementById('asistente-opciones').innerHTML=`
-        <button onclick="asistenteResponder('comprar')" style="padding:8px 14px;background:#eef2ff;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#6366f1">🛒 ¿Cómo comprar?</button>
-        <button onclick="asistenteResponder('mayorista')" style="padding:8px 14px;background:#f0fdf4;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#10b981">💎 Precios mayoristas</button>
-        <button onclick="asistenteResponder('envios')" style="padding:8px 14px;background:#fef3c7;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#f59e0b">🚚 Envíos</button>
-        <button onclick="asistenteResponder('pagos')" style="padding:8px 14px;background:#fce7f3;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#ec4899">💳 Medios de pago</button>
-        <button onclick="asistenteResponder('contacto')" style="padding:8px 14px;background:#e0e7ff;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#4f46e5">📞 Contacto</button>
-    `;
-}
-setTimeout(()=>{const burbuja=document.getElementById('asistente-burbuja');if(burbuja&&burbuja.style.display==='none'){burbuja.style.display='block';}},30000);
+function asistenteResponder(tema){const msg=document.getElementById('asistente-mensaje');const opciones=document.getElementById('asistente-opciones');switch(tema){case 'comprar':msg.innerHTML='🛒 <strong>Para comprar es muy fácil:</strong><br><br>1️⃣ Navegá por las categorías o buscá un producto<br>2️⃣ Hacé clic en <strong>"Ver"</strong> para ver los detalles<br>3️⃣ Elegí la variante (color, tamaño) y la cantidad<br>4️⃣ Clic en <strong>"Agregar al Pedido"</strong><br>5️⃣ Cuando termines, andá al carrito 🛒<br>6️⃣ Presioná <strong>"Finalizar Compra"</strong><br><br>¿Querés que te ayude con algo más?';break;case 'mayorista':msg.innerHTML='💎 <strong>¡Precios especiales por mayor!</strong><br><br>🏷️ Llevando <strong>cierta cantidad</strong> de productos, accedés a precios mayoristas con descuento.<br><br>📊 En el carrito vas a ver una <strong>barra de progreso</strong> que te muestra cuánto te falta para alcanzar el descuento.<br><br>🎉 ¡Al alcanzarlo, los precios se actualizan automáticamente!';break;case 'envios':msg.innerHTML='🚚 <strong>Información de envíos:</strong><br><br>📦 Hacemos envíos a <strong>todo el país</strong><br>🚀 Despachamos dentro de las <strong>72hs hábiles</strong> (muchas veces antes)<br>📍 Podés elegir entre:<br>• Retiro en nuestro local<br>• Envío a domicilio<br><br>El costo se calcula al finalizar la compra según tu ubicación.';break;case 'pagos':msg.innerHTML='💳 <strong>Medios de pago:</strong><br><br>💵 <strong>Efectivo</strong> (en el local)<br>🏦 <strong>Transferencia bancaria</strong><br><br>⚠️ Los pedidos tienen <strong>24hs hábiles</strong> para ser abonados por transferencia, o serán cancelados.';break;case 'contacto':const ws=configuracion.redes?.whatsapp||'';const tel=configuracion.empresa?.telefono||'';msg.innerHTML='📞 <strong>Contactanos:</strong><br><br>📱 WhatsApp: <strong>'+ws+'</strong><br>📞 Teléfono: <strong>'+tel+'</strong><br>📧 Email: <strong>'+(configuracion.empresa?.email||'esenciacurvy26@gmail.com')+'</strong><br><br>⏰ Horarios:<br>'+(configuracion.horarios?.lunesViernes||'9:00 a 18:00')+'<br>¡Te esperamos!';break}opciones.innerHTML='<button onclick="volverMenuAyuda()" style="padding:8px 14px;background:#6366f1;color:white;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;width:100%">🔙 Volver al menú</button>'}
+function volverMenuAyuda(){document.getElementById('asistente-mensaje').innerHTML='¡Hola! Soy el asistente de ESENCIA CURVY. ¿En qué puedo ayudarte?';document.getElementById('asistente-opciones').innerHTML=`<button onclick="asistenteResponder('comprar')" style="padding:8px 14px;background:#eef2ff;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#6366f1">🛒 ¿Cómo comprar?</button><button onclick="asistenteResponder('mayorista')" style="padding:8px 14px;background:#f0fdf4;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#10b981">💎 Precios mayoristas</button><button onclick="asistenteResponder('envios')" style="padding:8px 14px;background:#fef3c7;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#f59e0b">🚚 Envíos</button><button onclick="asistenteResponder('pagos')" style="padding:8px 14px;background:#fce7f3;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#ec4899">💳 Medios de pago</button><button onclick="asistenteResponder('contacto')" style="padding:8px 14px;background:#e0e7ff;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600;color:#4f46e5">📞 Contacto</button>`}
+setTimeout(()=>{const burbuja=document.getElementById('asistente-burbuja');if(burbuja&&burbuja.style.display==='none'){burbuja.style.display='block'}},30000);
 
 document.addEventListener('DOMContentLoaded',()=>{
     cargarDatos();
