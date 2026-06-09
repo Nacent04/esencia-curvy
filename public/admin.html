@@ -912,7 +912,7 @@ function asignarFotoPorColor(pid) {
                                 <div style="text-align:center;flex:1;min-width:150px">
                                     <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:#4A3728">🖥️ Foto PC<br><small style="color:#8B7355">800 x 1000 px</small></label>
                                     <img src="${sanitizarUrl(variantes[0].foto)}" 
-                                         style="width:120px;height:150px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD;margin-bottom:6px" 
+                                         style="width:120px;height:150px;object-fit:contain;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD;margin-bottom:6px" 
                                          onclick="document.getElementById('foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
                                          onerror="this.src='https://via.placeholder.com/120x150/FAEDCD/D4A373?text=PC'">
                                     <input type="file" id="foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
@@ -923,7 +923,7 @@ function asignarFotoPorColor(pid) {
                                 <div style="text-align:center;flex:1;min-width:150px">
                                     <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:#4A3728">📱 Foto Móvil<br><small style="color:#8B7355">600 x 800 px</small></label>
                                     <img src="${sanitizarUrl(variantes[0].foto_mobile || variantes[0].foto)}" 
-                                         style="width:90px;height:120px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD;margin-bottom:6px" 
+                                         style="width:90px;height:120px;object-fit:contain;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD;margin-bottom:6px" 
                                          onclick="document.getElementById('foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
                                          onerror="this.src='https://via.placeholder.com/90x120/FAEDCD/D4A373?text=MOB'">
                                     <input type="file" id="foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
@@ -944,7 +944,6 @@ function asignarFotoPorColor(pid) {
 async function subirFotoColorMasivo(input, pid, color, tipo) {
     if (!input.files?.[0]) return;
     
-    // Validar dimensiones
     const img = new Image();
     img.src = URL.createObjectURL(input.files[0]);
     await new Promise((resolve) => { img.onload = resolve; });
@@ -978,7 +977,6 @@ async function subirFotoColorMasivo(input, pid, color, tipo) {
                 }
             });
             
-            // Regenerar panel de variantes
             const container = document.getElementById(`variantes-container-${pid}`);
             if (container) {
                 container.innerHTML = p.variantes.map((v, i) => `
@@ -994,7 +992,6 @@ async function subirFotoColorMasivo(input, pid, color, tipo) {
                 `).join('');
             }
             
-            // Actualizar modal
             const colorSafe = color.replace(/\s/g, '_');
             const imgSelector = tipo === 'pc' ? `#foto-pc-${pid}-${colorSafe}` : `#foto-mob-${pid}-${colorSafe}`;
             const imgEl = document.querySelector(imgSelector)?.parentElement?.querySelector('img');
