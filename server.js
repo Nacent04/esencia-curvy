@@ -186,6 +186,14 @@ async function initDB() {
                 estado TEXT DEFAULT 'cerrada',
                 "cierreTimestamp" BIGINT
             );
+            CREATE TABLE IF NOT EXISTS costos_producto (
+                id SERIAL PRIMARY KEY,
+                "productoId" BIGINT NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+                costo REAL DEFAULT 0,
+                flete REAL DEFAULT 0,
+                adicionales TEXT DEFAULT '[]',
+                "fechaActualizacion" BIGINT
+            );
         `);
         console.log('✅ PostgreSQL listo');
     } finally {
@@ -794,6 +802,65 @@ app.post('/admin/buscar-clientes', adminMiddleware(), async (req, res) => {
     const q = `%${req.body.query||''}%`;
     const clientes = (await pool.query('SELECT id, nombre, apellido, email, telefono, dni FROM usuarios WHERE nombre ILIKE $1 OR apellido ILIKE $1 OR email ILIKE $1 OR dni ILIKE $1 LIMIT 20', [q])).rows;
     res.json({ lista: clientes });
+});
+
+app.post('/admin/listar-costos', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const costos = (await pool.query('SELECT * FROM costos_producto')).rows;
+        res.json({ lista: costos });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/admin/guardar-costos', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const { productoId, costo, flete, adicionales } = req.body;
+        const existe = (await pool.query('SELECT id FROM costos_producto WHERE "productoId"=$1', [productoId])).rows[0];
+        if (existe) {
+            await pool.query('UPDATE costos_producto SET costo=$1, flete=$2, adicionales=$3, "fechaActualizacion"=$4 WHERE "productoId"=$5',
+                [costo||0, flete||0, JSON.stringify(adicionales||[]), Date.now(), productoId]);
+        } else {
+            await pool.query('INSERT INTO costos_producto ("productoId", costo, flete, adicionales, "fechaActualizacion") VALUES ($1,$2,$3,$4,$5)',
+                [productoId, costo||0, flete||0, JSON.stringify(adicionales||[]), Date.now()]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/admin/rendimiento-historico', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const { productoId, desde, hasta } = req.body;
+        let query = "SELECT * FROM ventas WHERE items::text LIKE $1";
+        let params = [`%${productoId}%`];
+        if (desde) { query += " AND fecha >= $" + (params.length+1); params.push(desde); }
+        if (hasta) { query += " AND fecha <= $" + (params.length+1); params.push(hasta); }
+        query += " ORDER BY \"fechaTimestamp\" DESC LIMIT 200";
+        
+        const ventas = (await pool.query(query, params)).rows;
+        const costos = (await pool.query('SELECT * FROM costos_producto WHERE "productoId"=$1', [productoId])).rows[0];
+        const costoData = costos || { costo: 0, flete: 0, adicionales: [] };
+        const adicionales = JSON.parse(costoData.adicionales || '[]');
+        const costoBase = (costoData.costo || 0) + (costoData.flete || 0) + adicionales.reduce((s, a) => s + (a.monto || 0), 0);
+        
+        const resultado = [];
+        ventas.forEach(v => {
+            const items = JSON.parse(v.items || '[]');
+            items.forEach(it => {
+                if (it.pId == productoId) {
+                    resultado.push({
+                        fecha: v.fecha,
+                        ventaId: v.id,
+                        cantidad: it.cant,
+                        precio: it.precio,
+                        precioOriginal: it.precioOriginal || it.precio,
+                        esMayorista: it.precioOriginal && it.precio < it.precioOriginal,
+                        costo: costoBase
+                    });
+                }
+            });
+        });
+        
+        res.json({ ventas: resultado });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/admin/exportar-ventas', adminMiddleware(), async (req, res) => {
