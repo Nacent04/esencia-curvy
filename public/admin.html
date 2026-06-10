@@ -301,9 +301,9 @@ function escapeHtml(s) { if(!s) return ''; return s.replace(/[&<>]/g, m=>({'&':'
 function formatearNumero(n) { if(!n) return '0'; return Math.floor(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
 function desformatearNumero(t) { if(!t) return 0; return parseInt(t.toString().replace(/\./g,''))||0; }
 function sanitizarUrl(url){
-    if(!url || url === '') return 'https://res.cloudinary.com/TU_CLOUD/placeholder.png';
+    if(!url || url === '') return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" fill="%23FAEDCD"><rect width="400" height="300"/><text x="50%" y="50%" text-anchor="middle" fill="%23D4A373" font-size="20">Sin imagen</text></svg>';
     if(url.startsWith('/uploads/') || url.startsWith('http')) return url;
-    return 'https://res.cloudinary.com/TU_CLOUD/placeholder.png';
+    return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" fill="%23FAEDCD"><rect width="400" height="300"/><text x="50%" y="50%" text-anchor="middle" fill="%23D4A373" font-size="20">Sin imagen</text></svg>';
 }
 async function safeFetch(url, options={}) { if (adminToken) options.headers = { ...options.headers, 'Authorization': `Bearer ${adminToken}` }; try { const res = await fetch(url, options); if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || `HTTP ${res.status}`); return await res.json(); } catch(e) { mostrarToast(e.message, true); throw e; } }
 
