@@ -913,10 +913,10 @@ function asignarFotoPorColor(pid) {
                             <div style="display:flex;gap:20px;align-items:center;justify-content:center;flex-wrap:wrap">
                                 <div style="text-align:center;flex:1;min-width:150px">
                                     <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:#4A3728">🖥️ Foto PC<br><small style="color:#8B7355">800 x 1000 px</small></label>
-                                    <img src="${sanitizarUrl(variantes[0].foto)}" 
-                                         style="width:120px;height:150px;object-fit:contain;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD;margin-bottom:6px" 
-                                         onclick="document.getElementById('foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
-                                         onerror="this.src='https://via.placeholder.com/120x150/FAEDCD/D4A373?text=PC'">
+                                    <div style="width:120px;height:150px;border:2px solid #FAEDCD;border-radius:8px;margin:0 auto 6px;background:#FEFAE0;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden" onclick="document.getElementById('foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()">
+                                        <img src="${sanitizarUrl(variantes[0].foto)}" id="preview-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" style="width:100%;height:100%;object-fit:contain;display:${variantes[0].foto?'block':'none'}">
+                                        <span id="placeholder-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" style="font-size:11px;color:#8B7355;${variantes[0].foto?'display:none':''}">Sin imagen</span>
+                                    </div>
                                     <input type="file" id="foto-pc-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
                                            onchange="subirFotoColorMasivo(this, '${pid}', '${escapeHtml(color)}', 'pc')">
                                     <button class="tab-btn" style="padding:6px 14px;font-size:11px;background:#D4A373;color:white;display:block;margin:0 auto" 
@@ -924,10 +924,10 @@ function asignarFotoPorColor(pid) {
                                 </div>
                                 <div style="text-align:center;flex:1;min-width:150px">
                                     <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;color:#4A3728">📱 Foto Móvil<br><small style="color:#8B7355">600 x 800 px</small></label>
-                                    <img src="${sanitizarUrl(variantes[0].foto_mobile || variantes[0].foto)}" 
-                                         style="width:90px;height:120px;object-fit:contain;border-radius:8px;cursor:pointer;border:2px solid #FAEDCD;margin-bottom:6px" 
-                                         onclick="document.getElementById('foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()"
-                                         onerror="this.src='https://via.placeholder.com/90x120/FAEDCD/D4A373?text=MOB'">
+                                    <div style="width:90px;height:120px;border:2px solid #FAEDCD;border-radius:8px;margin:0 auto 6px;background:#FEFAE0;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden" onclick="document.getElementById('foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}').click()">
+                                        <img src="${sanitizarUrl(variantes[0].foto_mobile || variantes[0].foto)}" id="preview-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" style="width:100%;height:100%;object-fit:contain;display:${(variantes[0].foto_mobile||variantes[0].foto)?'block':'none'}">
+                                        <span id="placeholder-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" style="font-size:11px;color:#8B7355;${(variantes[0].foto_mobile||variantes[0].foto)?'display:none':''}">Sin imagen</span>
+                                    </div>
                                     <input type="file" id="foto-mob-${pid}-${escapeHtml(color).replace(/\s/g,'_')}" accept="image/*" style="display:none" 
                                            onchange="subirFotoColorMasivo(this, '${pid}', '${escapeHtml(color)}', 'mobile')">
                                     <button class="tab-btn" style="padding:6px 14px;font-size:11px;background:#E0A899;color:white;display:block;margin:0 auto" 
