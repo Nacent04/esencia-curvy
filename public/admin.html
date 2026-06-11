@@ -440,7 +440,29 @@ function eliminarDelCarrito(i){ carrito.splice(i,1); calcularPreciosMayoristaEnV
 function setLog(t){ logistica=t; document.getElementById('form-envio').classList.toggle('hidden',t!=='envio'); document.querySelectorAll('.entrega-btn').forEach(b=>b.classList.remove('active')); document.getElementById(`l-${t}`).classList.add('active'); }
 function setMetodo(m){ metodoPago=m; document.querySelectorAll('.pago-btn').forEach(b=>b.classList.remove('active')); document.getElementById(m==='efectivo'?'p-ef':m==='transferencia'?'p-tr':'p-mx').classList.add('active'); }
 
-async function checkout(){ if(!carrito.length){mostrarToast('Carrito vacío',true);return;} let cd={nombre:'Mostrador'}; if(logistica==='envio'){let n=document.getElementById('env-nombre').value.trim(),dni=document.getElementById('env-dni').value.trim(),c=document.getElementById('env-celular').value.trim();if(!n||!dni||!c){mostrarToast('Completá datos',true);return;}cd={nombre:n,dni:dni,celular:c};} let data=await safeFetch('/confirmar-venta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({carrito,pago:{total:totalVenta,metodo:metodoPago},logistica,cliente:cd,mayoristaConfig:{habilitado:mayoristaHabilitado}})}); if(data.success){mostrarToast(`✅ Venta ${data.ventaId}`);carrito=[];renderCart();localStorage.removeItem('pos_carrito');cargar();cargarVentas();} }
+async function checkout(){ 
+    if(!carrito.length){mostrarToast('Carrito vacío',true);return;}
+    
+    // Verificar caja abierta
+    try {
+        const caja = await safeFetch('/admin/estado-caja-profesional', {method:'POST'});
+        if (!caja.abierta) {
+            mostrarToast('🔒 Debes abrir la caja antes de realizar ventas', true);
+            return;
+        }
+    } catch(e) {}
+    
+    let cd={nombre:'Mostrador'}; 
+    if(logistica==='envio'){
+        let n=document.getElementById('env-nombre').value.trim(),
+        dni=document.getElementById('env-dni').value.trim(),
+        c=document.getElementById('env-celular').value.trim();
+        if(!n||!dni||!c){mostrarToast('Completá datos',true);return;}
+        cd={nombre:n,dni:dni,celular:c};
+    } 
+    let data=await safeFetch('/confirmar-venta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({carrito,pago:{total:totalVenta,metodo:metodoPago},logistica,cliente:cd,mayoristaConfig:{habilitado:mayoristaHabilitado}})}); 
+    if(data.success){mostrarToast(`✅ Venta ${data.ventaId}`);carrito=[];renderCart();localStorage.removeItem('pos_carrito');cargar();cargarVentas();} 
+}
 function buscarProductos(){ let b=document.getElementById('buscador').value.toLowerCase(); document.querySelectorAll('#grid-prods .card').forEach(c=>c.style.display=c.getAttribute('data-nombre').includes(b)?'':'none'); }
 
 function renderAdmin(){
