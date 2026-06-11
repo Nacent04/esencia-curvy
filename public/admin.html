@@ -525,9 +525,11 @@ function imprimirTicket(id,tipo='termico'){
     const v=ventasHistorial.find(x=>x.id===id);
     if(!v)return;
     const cliente=v.cliente||{};
-    const tel = document.getElementById('empresa-telefono')?.value || '';
-    const email = document.getElementById('empresa-email')?.value || '';
-    const dir = document.getElementById('empresa-direccion')?.value || '';
+    let emp = configuracion?.empresa;
+if (typeof emp === 'string') emp = JSON.parse(emp);
+const tel = emp?.telefono || '';
+const email = emp?.email || '';
+const dir = emp?.direccion || '';
     
     if(tipo==='termico'){
         let h=`<div style="width:280px;padding:12px;font-family:'Courier New',monospace;font-size:11px;background:white"><div style="text-align:center;border-bottom:2px dashed #000;padding-bottom:8px;margin-bottom:8px"><strong style="font-size:16px">ESENCIA CURVY</strong><br>Ropa en Talles Especiales para Mujer<br>${dir}<br>📞 ${tel}</div><div style="text-align:center;margin:8px 0"><strong>FACTURA ${v.id}</strong><br>${v.fecha}</div><div style="border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:4px">Cliente: ${cliente.nombre||'Mostrador'}<br>${cliente.dni?'DNI: '+cliente.dni:''}</div><table style="width:100%;font-size:10px"><tr style="border-bottom:1px solid #eee"><td>Cant</td><td>Producto</td><td style="text-align:right">Total</td></tr>${v.items.map(i=>`<tr><td>${i.cant}</td><td>${i.pNom}</td><td style="text-align:right">${fmt.format(i.precio*i.cant)}</td></tr>`).join('')}</table><div style="border-top:2px solid #000;margin-top:8px;padding-top:4px;text-align:right;font-size:14px"><strong>TOTAL: ${fmt.format(v.pago?.total||v.total)}</strong></div><div style="text-align:center;margin-top:8px;font-size:10px">Pago: ${v.pago?.metodo||'Efectivo'}<br>Gracias por su compra!</div></div>`;
