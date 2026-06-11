@@ -309,18 +309,76 @@ async function safeFetch(url, options={}) { if (adminToken) options.headers = { 
 
 async function loginAdmin() { const usuario = document.getElementById('login-usuario').value.trim(); const password = document.getElementById('login-password').value; if (!usuario || !password) { document.getElementById('login-error').textContent = 'Completá todos los campos'; return; } try { const res = await fetch('/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({usuario,password}) }); const data = await res.json(); if (data.success) { localStorage.setItem('adminToken', data.token); adminToken = data.token; adminActual = data.perfil; document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-screen').style.display = 'block'; iniciarPanel(); } else { document.getElementById('login-error').textContent = data.error || 'Error'; } } catch(e) { document.getElementById('login-error').textContent = 'Error de conexión'; } }
 function cerrarSesionAdmin() { localStorage.removeItem('adminToken'); localStorage.removeItem('pos_carrito'); adminToken = null; adminActual = null; location.reload(); }
-async function iniciarPanel() { 
-    await cargarConfiguracion();
-    tab('v'); 
-    cargarCarritoGuardado(); 
-    setLog('local'); 
-    setMetodo('efectivo'); 
-    setInterval(cargarNotificaciones, 30000); 
-    cargarNotificaciones(); 
-    aplicarPermisos(); 
+async function cargarConfiguracion() {
+    try {
+        const d = await safeFetch('/get-config', { method: 'POST' });
+        configuracion = d;
+        window.configuracion = d;  // 🔥 AGREGAR ESTA LÍNEA - Guarda en window para acceso global
+        
+        if(d.logo){
+            document.getElementById('logo-preview-img').src = d.logo;
+            document.getElementById('logo-preview-img').style.display = 'block';
+            document.getElementById('logo-placeholder').style.display = 'none';
+        }
+        document.getElementById('empresa-nombre').value = d.empresa?.nombre || '';
+        document.getElementById('empresa-telefono').value = d.empresa?.telefono || '';
+        document.getElementById('empresa-email').value = d.empresa?.email || '';
+        document.getElementById('empresa-direccion').value = d.empresa?.direccion || '';
+        
+        if(d.horarios){
+            document.getElementById('horario-lv').value = d.horarios.lunesViernes || '';
+            document.getElementById('horario-sab').value = d.horarios.sabados || '';
+            document.getElementById('horario-dom').value = d.horarios.domingos || '';
+        }
+        if(d.redes){
+            document.getElementById('red-instagram').value = d.redes.instagram || '';
+            document.getElementById('red-facebook').value = d.redes.facebook || '';
+            document.getElementById('red-tiktok').value = d.redes.tiktok || '';
+            document.getElementById('red-whatsapp').value = d.redes.whatsapp || '';
+        }
+        if(d.pagos){
+            document.getElementById('pago-alias').value = d.pagos.alias || '';
+            document.getElementById('pago-cbu').value = d.pagos.cbu || '';
+            document.getElementById('pago-banco').value = d.pagos.banco || '';
+            document.getElementById('pago-titular').value = d.pagos.titular || '';
+        }
+        if(d.diseno){
+            document.getElementById('tienda-color-primary').value = d.diseno.colorPrimario || '#1a1a1a';
+            document.getElementById('tienda-color-secondary').value = d.diseno.colorSecundario || '#c9a96e';
+            document.getElementById('tienda-color-bg').value = d.diseno.colorFondo || '#fafafa';
+            document.getElementById('tienda-color-text').value = d.diseno.colorTexto || '#1a1a1a';
+        }
+        if(d.tienda){
+            document.getElementById('tienda-titulo').value = d.tienda.titulo || '';
+            document.getElementById('tienda-mensaje').value = d.tienda.mensajeBienvenida || '';
+            setTiendaHabilitada(d.tienda.habilitada !== false);
+        }
+        if(d.mayorista){
+            mayoristaHabilitado = d.mayorista.habilitado || false;
+            mayoristaModo = d.mayorista.modo || 'cantidad';
+            document.getElementById('mayoristaCantidad').value = d.mayorista.valorCantidad || 3;
+            document.getElementById('mayoristaMonto').value = formatearNumero(d.mayorista.valorMonto || 80000);
+            selectMayoristaModo(mayoristaModo);
+            if(!mayoristaHabilitado){
+                document.getElementById('mayoristaPanel').style.display = 'none';
+                const btn = document.getElementById('btnMayoristaToggle');
+                if(btn) {
+                    btn.innerHTML = '<i class="fas fa-toggle-off"></i> Desactivado';
+                    btn.style.background = '#64748b';
+                }
+            }
+        }
+        if(d.metodosEnvio && document.getElementById('metodos-envio-lista')) {
+            document.getElementById('metodos-envio-lista').value = d.metodosEnvio.join('\n');
+        }
+        
+        // 🔥 DEBUG: Verificar en consola que el teléfono se cargó
+        console.log('✅ Configuración cargada - Teléfono:', d.empresa?.telefono);
+        
+    } catch(e) {
+        console.error('Error cargando configuración:', e);
+    }
 }
-if (adminToken) { document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-screen').style.display = 'block'; iniciarPanel(); }
-
 
 function aplicarPermisos() {
     if (!adminActual || adminActual.rol === 'admin') return;
@@ -537,49 +595,58 @@ function imprimirTicket(id, tipo = 'termico') {
     
     const cliente = v.cliente || {};
     
-    // OBTENER DATOS DE CONFIGURACIÓN CORRECTAMENTE
-    let telefono = '';
-    let email = '';
-    let direccion = '';
+    // OBTENER TELÉFONO DE LA CONFIGURACIÓN - Versión simplificada que funciona
+    let telefonoEmpresa = 'No especificado';
+    let emailEmpresa = '';
+    let direccionEmpresa = '';
     let nombreEmpresa = 'ESENCIA CURVY';
     
-    // Método 1: Desde variable global configuracion
-    if (typeof configuracion !== 'undefined' && configuracion) {
-        if (configuracion.empresa) {
-            let emp = configuracion.empresa;
-            // Si es string, parsear
-            if (typeof emp === 'string') {
-                try {
-                    emp = JSON.parse(emp);
-                } catch(e) {}
+    // Intentar obtener de la variable global configuracion
+    if (typeof window.configuracion !== 'undefined' && window.configuracion) {
+        let empresa = window.configuracion.empresa;
+        if (empresa) {
+            if (typeof empresa === 'string') {
+                try { empresa = JSON.parse(empresa); } catch(e) {}
             }
-            nombreEmpresa = emp?.nombre || 'ESENCIA CURVY';
-            telefono = emp?.telefono || '';
-            email = emp?.email || '';
-            direccion = emp?.direccion || '';
+            if (empresa.telefono) telefonoEmpresa = empresa.telefono;
+            if (empresa.nombre) nombreEmpresa = empresa.nombre;
+            if (empresa.email) emailEmpresa = empresa.email;
+            if (empresa.direccion) direccionEmpresa = empresa.direccion;
         }
     }
     
-    // Método 2: Desde elementos del DOM (fallback)
-    if (!telefono) {
-        const headerPhone = document.getElementById('header-phone');
-        if (headerPhone) telefono = headerPhone.textContent || '';
-    }
-    if (!telefono) {
-        const footerTel = document.getElementById('footer-telefono');
-        if (footerTel) telefono = footerTel.textContent?.replace(/[^0-9+\-]/g, '') || '';
+    // Si no se encontró, intentar desde localStorage (por si se guardó ahí)
+    if (telefonoEmpresa === 'No especificado') {
+        try {
+            const configGuardada = localStorage.getItem('configuracion_empresa');
+            if (configGuardada) {
+                const empresa = JSON.parse(configGuardada);
+                if (empresa.telefono) telefonoEmpresa = empresa.telefono;
+                if (empresa.nombre) nombreEmpresa = empresa.nombre;
+            }
+        } catch(e) {}
     }
     
-    // Asegurar que el teléfono tenga formato visible
-    const telefonoDisplay = telefono || 'No especificado';
+    // Si sigue sin teléfono, intentar desde elementos del DOM visibles
+    if (telefonoEmpresa === 'No especificado') {
+        const headerPhone = document.getElementById('header-phone');
+        if (headerPhone && headerPhone.textContent) {
+            telefonoEmpresa = headerPhone.textContent.trim();
+        } else {
+            const footerTel = document.getElementById('footer-telefono');
+            if (footerTel && footerTel.textContent) {
+                telefonoEmpresa = footerTel.textContent.replace(/[^0-9+\-]/g, '');
+            }
+        }
+    }
     
     if (tipo === 'termico') {
         let h = `<div style="width:280px;padding:12px;font-family:'Courier New',monospace;font-size:11px;background:white">
             <div style="text-align:center;border-bottom:2px dashed #000;padding-bottom:8px;margin-bottom:8px">
                 <strong style="font-size:16px">${escapeHtml(nombreEmpresa)}</strong><br>
                 Ropa en Talles Especiales para Mujer<br>
-                ${direccion ? escapeHtml(direccion) + '<br>' : ''}
-                📞 ${escapeHtml(telefonoDisplay)}
+                ${direccionEmpresa ? escapeHtml(direccionEmpresa) + '<br>' : ''}
+                📞 ${escapeHtml(telefonoEmpresa)}
             </div>
             <div style="text-align:center;margin:8px 0">
                 <strong>FACTURA ${v.id}</strong><br>
@@ -606,7 +673,7 @@ function imprimirTicket(id, tipo = 'termico') {
             </div>
             <div style="text-align:center;margin-top:8px;font-size:10px">
                 Pago: ${v.pago?.metodo || 'Efectivo'}<br>
-                📞 ${escapeHtml(telefonoDisplay)}<br>
+                📞 ${escapeHtml(telefonoEmpresa)}<br>
                 ¡Gracias por su compra!
             </div>
         </div>`;
@@ -621,15 +688,15 @@ function imprimirTicket(id, tipo = 'termico') {
         }).save().then(() => el.remove());
         
     } else {
-        // A4
+        // Formato A4
         const esEnvio = v.logistica === 'envio';
         let h = `<div style="max-width:210mm;padding:30px;font-family:'Segoe UI',system-ui,sans-serif;color:#1a1a1a;background:white">
             <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #8B5E3C;padding-bottom:20px;margin-bottom:30px">
                 <div>
                     <h1 style="color:#8B5E3C;font-size:32px;margin:0;font-weight:800">${escapeHtml(nombreEmpresa)}</h1>
                     <p style="color:#666;margin:5px 0;font-size:14px">Ropa en Talles Especiales</p>
-                    <p style="color:#888;margin:0;font-size:12px">${escapeHtml(direccion)}</p>
-                    <p style="color:#888;margin:0;font-size:12px">📞 ${escapeHtml(telefonoDisplay)} | ✉️ ${escapeHtml(email)}</p>
+                    <p style="color:#888;margin:0;font-size:12px">${escapeHtml(direccionEmpresa)}</p>
+                    <p style="color:#888;margin:0;font-size:12px">📞 ${escapeHtml(telefonoEmpresa)} | ✉️ ${escapeHtml(emailEmpresa)}</p>
                 </div>
                 <div style="text-align:right">
                     <div style="background:#8B5E3C;color:white;padding:15px 25px;border-radius:10px;font-size:14px;font-weight:700">
@@ -702,7 +769,7 @@ function imprimirTicket(id, tipo = 'termico') {
             </div>
             <div style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #e0e0e0;color:#888;font-size:11px">
                 <p>¡Gracias por su compra! | ${escapeHtml(nombreEmpresa)}</p>
-                <p>📞 ${escapeHtml(telefonoDisplay)} | ${escapeHtml(direccion)}</p>
+                <p>📞 ${escapeHtml(telefonoEmpresa)} | ${escapeHtml(direccionEmpresa)}</p>
             </div>
         </div>`;
         
@@ -716,6 +783,7 @@ function imprimirTicket(id, tipo = 'termico') {
         }).save().then(() => el.remove());
     }
 }
+
 async function subirLogo(i){if(!i.files?.[0])return;let f=new FormData();f.append('logo',i.files[0]);let d=await safeFetch('/subir-logo',{method:'POST',body:f});if(d.success){document.getElementById('logo-preview-img').src=d.url;document.getElementById('logo-preview-img').style.display='block';document.getElementById('logo-placeholder').style.display='none';}}
 async function eliminarLogo(){await safeFetch('/eliminar-logo',{method:'POST'});document.getElementById('logo-preview-img').style.display='none';document.getElementById('logo-placeholder').style.display='block';}
 async function guardarConfiguracion(){await safeFetch('/save-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({empresa:{nombre:document.getElementById('empresa-nombre').value,telefono:document.getElementById('empresa-telefono').value,email:document.getElementById('empresa-email').value,direccion:document.getElementById('empresa-direccion').value},horarios:{lunesViernes:document.getElementById('horario-lv').value,sabados:document.getElementById('horario-sab').value,domingos:document.getElementById('horario-dom').value},redes:{instagram:document.getElementById('red-instagram').value,facebook:document.getElementById('red-facebook').value,tiktok:document.getElementById('red-tiktok').value,whatsapp:document.getElementById('red-whatsapp').value},pagos:{alias:document.getElementById('pago-alias').value,cbu:document.getElementById('pago-cbu').value,banco:document.getElementById('pago-banco').value,titular:document.getElementById('pago-titular').value}})});mostrarToast('✅ Guardado');}
