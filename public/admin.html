@@ -312,18 +312,33 @@ function cerrarSesionAdmin() { localStorage.removeItem('adminToken'); localStora
 async function cargarConfiguracion() {
     try {
         const d = await safeFetch('/get-config', { method: 'POST' });
+        
+        // Convertir empresa de string a objeto si es necesario
+        let empresa = d.empresa;
+        if (typeof empresa === 'string') {
+            try { empresa = JSON.parse(empresa); } catch(e) { empresa = {}; }
+        }
+        d.empresa = empresa;
+        
         configuracion = d;
-        window.configuracion = d;  // 🔥 AGREGAR ESTA LÍNEA - Guarda en window para acceso global
+        window.configuracion = d;
+        
+        // Guardar variables globales simples
+        window.telefonoEmpresa = empresa?.telefono || 'No especificado';
+        window.nombreEmpresa = empresa?.nombre || 'ESENCIA CURVY';
+        window.emailEmpresa = empresa?.email || '';
+        window.direccionEmpresa = empresa?.direccion || '';
         
         if(d.logo){
             document.getElementById('logo-preview-img').src = d.logo;
             document.getElementById('logo-preview-img').style.display = 'block';
             document.getElementById('logo-placeholder').style.display = 'none';
         }
-        document.getElementById('empresa-nombre').value = d.empresa?.nombre || '';
-        document.getElementById('empresa-telefono').value = d.empresa?.telefono || '';
-        document.getElementById('empresa-email').value = d.empresa?.email || '';
-        document.getElementById('empresa-direccion').value = d.empresa?.direccion || '';
+        
+        document.getElementById('empresa-nombre').value = empresa?.nombre || '';
+        document.getElementById('empresa-telefono').value = empresa?.telefono || '';
+        document.getElementById('empresa-email').value = empresa?.email || '';
+        document.getElementById('empresa-direccion').value = empresa?.direccion || '';
         
         if(d.horarios){
             document.getElementById('horario-lv').value = d.horarios.lunesViernes || '';
@@ -372,22 +387,11 @@ async function cargarConfiguracion() {
             document.getElementById('metodos-envio-lista').value = d.metodosEnvio.join('\n');
         }
         
-        // 🔥 DEBUG: Verificar en consola que el teléfono se cargó
-        console.log('✅ Configuración cargada - Teléfono:', d.empresa?.telefono);
+        console.log('✅ Configuración cargada - Teléfono:', empresa?.telefono);
         
     } catch(e) {
         console.error('Error cargando configuración:', e);
     }
-}
-
-function aplicarPermisos() {
-    if (!adminActual || adminActual.rol === 'admin') return;
-    const permisos = adminActual.permisos || [];
-    document.querySelectorAll('#nav-tabs .tab-btn[data-permiso]').forEach(btn => {
-        const permiso = btn.getAttribute('data-permiso');
-        if (permiso === 'admin') { btn.style.display = 'none'; return; }
-        if (!permisos.includes(permiso)) btn.style.display = 'none';
-    });
 }
 
 function tab(t) {
