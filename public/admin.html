@@ -319,28 +319,76 @@ async function cargarConfiguracion() {
         configuracion = d;
         window.configuracion = d;
         
-        // FORZAR LLENADO INMEDIATO
-        setTimeout(() => {
-            const emp = window.configuracion?.empresa;
-            if(emp) {
-                const telInput = document.getElementById('empresa-telefono');
-                if(telInput) {
-                    document.getElementById('empresa-nombre').value = emp.nombre || '';
-                    document.getElementById('empresa-telefono').value = emp.telefono || '';
-                    document.getElementById('empresa-email').value = emp.email || '';
-                    document.getElementById('empresa-direccion').value = emp.direccion || '';
-                    console.log('✅ LLENADO - Teléfono:', document.getElementById('empresa-telefono').value);
-                } else {
-                    console.log('❌ Input empresa-telefono no existe en el DOM');
+        if(d.logo){
+            document.getElementById('logo-preview-img').src = d.logo;
+            document.getElementById('logo-preview-img').style.display = 'block';
+            document.getElementById('logo-placeholder').style.display = 'none';
+        }
+        
+        if(d.horarios){
+            document.getElementById('horario-lv').value = d.horarios.lunesViernes || '';
+            document.getElementById('horario-sab').value = d.horarios.sabados || '';
+            document.getElementById('horario-dom').value = d.horarios.domingos || '';
+        }
+        if(d.redes){
+            document.getElementById('red-instagram').value = d.redes.instagram || '';
+            document.getElementById('red-facebook').value = d.redes.facebook || '';
+            document.getElementById('red-tiktok').value = d.redes.tiktok || '';
+            document.getElementById('red-whatsapp').value = d.redes.whatsapp || '';
+        }
+        if(d.pagos){
+            document.getElementById('pago-alias').value = d.pagos.alias || '';
+            document.getElementById('pago-cbu').value = d.pagos.cbu || '';
+            document.getElementById('pago-banco').value = d.pagos.banco || '';
+            document.getElementById('pago-titular').value = d.pagos.titular || '';
+        }
+        if(d.diseno){
+            document.getElementById('tienda-color-primary').value = d.diseno.colorPrimario || '#1a1a1a';
+            document.getElementById('tienda-color-secondary').value = d.diseno.colorSecundario || '#c9a96e';
+            document.getElementById('tienda-color-bg').value = d.diseno.colorFondo || '#fafafa';
+            document.getElementById('tienda-color-text').value = d.diseno.colorTexto || '#1a1a1a';
+        }
+        if(d.tienda){
+            document.getElementById('tienda-titulo').value = d.tienda.titulo || '';
+            document.getElementById('tienda-mensaje').value = d.tienda.mensajeBienvenida || '';
+            setTiendaHabilitada(d.tienda.habilitada !== false);
+        }
+        if(d.mayorista){
+            mayoristaHabilitado = d.mayorista.habilitado || false;
+            mayoristaModo = d.mayorista.modo || 'cantidad';
+            document.getElementById('mayoristaCantidad').value = d.mayorista.valorCantidad || 3;
+            document.getElementById('mayoristaMonto').value = formatearNumero(d.mayorista.valorMonto || 80000);
+            selectMayoristaModo(mayoristaModo);
+            if(!mayoristaHabilitado){
+                document.getElementById('mayoristaPanel').style.display = 'none';
+                const btn = document.getElementById('btnMayoristaToggle');
+                if(btn) {
+                    btn.innerHTML = '<i class="fas fa-toggle-off"></i> Desactivado';
+                    btn.style.background = '#64748b';
                 }
             }
-        }, 200);
+        }
+        if(d.metodosEnvio && document.getElementById('metodos-envio-lista')) {
+            document.getElementById('metodos-envio-lista').value = d.metodosEnvio.join('\n');
+        }
+        
+        // LLENAR CAMPOS DE EMPRESA
+        if(d.empresa) {
+            let empresa = d.empresa;
+            if (typeof empresa === 'string') empresa = JSON.parse(empresa);
+            if(document.getElementById('empresa-nombre')) document.getElementById('empresa-nombre').value = empresa.nombre || '';
+            if(document.getElementById('empresa-telefono')) document.getElementById('empresa-telefono').value = empresa.telefono || '';
+            if(document.getElementById('empresa-email')) document.getElementById('empresa-email').value = empresa.email || '';
+            if(document.getElementById('empresa-direccion')) document.getElementById('empresa-direccion').value = empresa.direccion || '';
+        }
+        
+        console.log('✅ Configuración cargada - Teléfono:', document.getElementById('empresa-telefono')?.value);
         
     } catch(e) {
-        console.error('Error:', e);
+        console.error('Error cargando configuración:', e);
     }
 }
-    
+
 function tab(t) {
     if (adminActual && adminActual.rol !== 'admin') {
         const btn = document.querySelector(`[onclick="tab('${t}')"]`);
@@ -364,7 +412,7 @@ function tab(t) {
         setTimeout(() => { 
             cargarConfiguracion(); 
             cargarMetodosEnvio(); 
-        }, 200); 
+        }, 100); 
     }
     else if (t==='retiro') { container.className='layout'; container.innerHTML=renderPaginaRetiro(); cartPanel.classList.add('hidden'); }
     else if (t==='p') { container.className='layout'; container.innerHTML=renderPaginaPedidosWeb(); cartPanel.classList.add('hidden'); cargarPedidosTienda(); }
@@ -376,14 +424,6 @@ function tab(t) {
     else if (t==='backup') { container.className='layout'; container.innerHTML=renderPaginaBackup(); cartPanel.classList.add('hidden'); setTimeout(cargarHistorialBackups,100); }
     document.querySelectorAll('.nav-tabs .tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`t-${t}`)?.classList.add('active');
-}
-    function llenarCamposConfig() {
-    let e = window.configuracion.empresa;
-    if (typeof e === 'string') e = JSON.parse(e);
-    document.getElementById('empresa-nombre') && (document.getElementById('empresa-nombre').value = e.nombre || '');
-    document.getElementById('empresa-telefono') && (document.getElementById('empresa-telefono').value = e.telefono || '');
-    document.getElementById('empresa-email') && (document.getElementById('empresa-email').value = e.email || '');
-    document.getElementById('empresa-direccion') && (document.getElementById('empresa-direccion').value = e.direccion || '');
 }
     
 function renderPaginaVentas() { 
