@@ -377,6 +377,14 @@ function tab(t) {
     document.querySelectorAll('.nav-tabs .tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`t-${t}`)?.classList.add('active');
 }
+    function llenarCamposConfig() {
+    let e = window.configuracion.empresa;
+    if (typeof e === 'string') e = JSON.parse(e);
+    document.getElementById('empresa-nombre') && (document.getElementById('empresa-nombre').value = e.nombre || '');
+    document.getElementById('empresa-telefono') && (document.getElementById('empresa-telefono').value = e.telefono || '');
+    document.getElementById('empresa-email') && (document.getElementById('empresa-email').value = e.email || '');
+    document.getElementById('empresa-direccion') && (document.getElementById('empresa-direccion').value = e.direccion || '');
+}
     
 function renderPaginaVentas() { 
     return `<div class="panel">
