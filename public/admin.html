@@ -323,7 +323,6 @@ async function cargarConfiguracion() {
         configuracion = d;
         window.configuracion = d;
         
-        // Guardar variables globales simples
         window.telefonoEmpresa = empresa?.telefono || 'No especificado';
         window.nombreEmpresa = empresa?.nombre || 'ESENCIA CURVY';
         window.emailEmpresa = empresa?.email || '';
@@ -335,57 +334,62 @@ async function cargarConfiguracion() {
             document.getElementById('logo-placeholder').style.display = 'none';
         }
         
-        document.getElementById('empresa-nombre').value = empresa?.nombre || '';
-        document.getElementById('empresa-telefono').value = empresa?.telefono || '';
-        document.getElementById('empresa-email').value = empresa?.email || '';
-        document.getElementById('empresa-direccion').value = empresa?.direccion || '';
-        
-        if(d.horarios){
-            document.getElementById('horario-lv').value = d.horarios.lunesViernes || '';
-            document.getElementById('horario-sab').value = d.horarios.sabados || '';
-            document.getElementById('horario-dom').value = d.horarios.domingos || '';
-        }
-        if(d.redes){
-            document.getElementById('red-instagram').value = d.redes.instagram || '';
-            document.getElementById('red-facebook').value = d.redes.facebook || '';
-            document.getElementById('red-tiktok').value = d.redes.tiktok || '';
-            document.getElementById('red-whatsapp').value = d.redes.whatsapp || '';
-        }
-        if(d.pagos){
-            document.getElementById('pago-alias').value = d.pagos.alias || '';
-            document.getElementById('pago-cbu').value = d.pagos.cbu || '';
-            document.getElementById('pago-banco').value = d.pagos.banco || '';
-            document.getElementById('pago-titular').value = d.pagos.titular || '';
-        }
-        if(d.diseno){
-            document.getElementById('tienda-color-primary').value = d.diseno.colorPrimario || '#1a1a1a';
-            document.getElementById('tienda-color-secondary').value = d.diseno.colorSecundario || '#c9a96e';
-            document.getElementById('tienda-color-bg').value = d.diseno.colorFondo || '#fafafa';
-            document.getElementById('tienda-color-text').value = d.diseno.colorTexto || '#1a1a1a';
-        }
-        if(d.tienda){
-            document.getElementById('tienda-titulo').value = d.tienda.titulo || '';
-            document.getElementById('tienda-mensaje').value = d.tienda.mensajeBienvenida || '';
-            setTiendaHabilitada(d.tienda.habilitada !== false);
-        }
-        if(d.mayorista){
-            mayoristaHabilitado = d.mayorista.habilitado || false;
-            mayoristaModo = d.mayorista.modo || 'cantidad';
-            document.getElementById('mayoristaCantidad').value = d.mayorista.valorCantidad || 3;
-            document.getElementById('mayoristaMonto').value = formatearNumero(d.mayorista.valorMonto || 80000);
-            selectMayoristaModo(mayoristaModo);
-            if(!mayoristaHabilitado){
-                document.getElementById('mayoristaPanel').style.display = 'none';
-                const btn = document.getElementById('btnMayoristaToggle');
-                if(btn) {
-                    btn.innerHTML = '<i class="fas fa-toggle-off"></i> Desactivado';
-                    btn.style.background = '#64748b';
+        // ESPERAR A QUE EL DOM ESTÉ LISTO
+        setTimeout(() => {
+            if(document.getElementById('empresa-nombre')) {
+                document.getElementById('empresa-nombre').value = empresa?.nombre || '';
+                document.getElementById('empresa-telefono').value = empresa?.telefono || '';
+                document.getElementById('empresa-email').value = empresa?.email || '';
+                document.getElementById('empresa-direccion').value = empresa?.direccion || '';
+            }
+            
+            if(d.horarios){
+                document.getElementById('horario-lv').value = d.horarios.lunesViernes || '';
+                document.getElementById('horario-sab').value = d.horarios.sabados || '';
+                document.getElementById('horario-dom').value = d.horarios.domingos || '';
+            }
+            if(d.redes){
+                document.getElementById('red-instagram').value = d.redes.instagram || '';
+                document.getElementById('red-facebook').value = d.redes.facebook || '';
+                document.getElementById('red-tiktok').value = d.redes.tiktok || '';
+                document.getElementById('red-whatsapp').value = d.redes.whatsapp || '';
+            }
+            if(d.pagos){
+                document.getElementById('pago-alias').value = d.pagos.alias || '';
+                document.getElementById('pago-cbu').value = d.pagos.cbu || '';
+                document.getElementById('pago-banco').value = d.pagos.banco || '';
+                document.getElementById('pago-titular').value = d.pagos.titular || '';
+            }
+            if(d.diseno){
+                document.getElementById('tienda-color-primary').value = d.diseno.colorPrimario || '#1a1a1a';
+                document.getElementById('tienda-color-secondary').value = d.diseno.colorSecundario || '#c9a96e';
+                document.getElementById('tienda-color-bg').value = d.diseno.colorFondo || '#fafafa';
+                document.getElementById('tienda-color-text').value = d.diseno.colorTexto || '#1a1a1a';
+            }
+            if(d.tienda){
+                document.getElementById('tienda-titulo').value = d.tienda.titulo || '';
+                document.getElementById('tienda-mensaje').value = d.tienda.mensajeBienvenida || '';
+                setTiendaHabilitada(d.tienda.habilitada !== false);
+            }
+            if(d.mayorista){
+                mayoristaHabilitado = d.mayorista.habilitado || false;
+                mayoristaModo = d.mayorista.modo || 'cantidad';
+                document.getElementById('mayoristaCantidad').value = d.mayorista.valorCantidad || 3;
+                document.getElementById('mayoristaMonto').value = formatearNumero(d.mayorista.valorMonto || 80000);
+                selectMayoristaModo(mayoristaModo);
+                if(!mayoristaHabilitado){
+                    document.getElementById('mayoristaPanel').style.display = 'none';
+                    const btn = document.getElementById('btnMayoristaToggle');
+                    if(btn) {
+                        btn.innerHTML = '<i class="fas fa-toggle-off"></i> Desactivado';
+                        btn.style.background = '#64748b';
+                    }
                 }
             }
-        }
-        if(d.metodosEnvio && document.getElementById('metodos-envio-lista')) {
-            document.getElementById('metodos-envio-lista').value = d.metodosEnvio.join('\n');
-        }
+            if(d.metodosEnvio && document.getElementById('metodos-envio-lista')) {
+                document.getElementById('metodos-envio-lista').value = d.metodosEnvio.join('\n');
+            }
+        }, 50);
         
         console.log('✅ Configuración cargada - Teléfono:', empresa?.telefono);
         
