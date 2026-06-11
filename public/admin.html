@@ -302,7 +302,7 @@ function formatearNumero(n) { if(!n) return '0'; return Math.floor(n).toString()
 function desformatearNumero(t) { if(!t) return 0; return parseInt(t.toString().replace(/\./g,''))||0; }
 function sanitizarUrl(url){
     if(!url || url === '') return '';
-    if(url.startsWith('/uploads/') || url.startsWith('http')) return url;
+    if(url.startsWith('/uploads/') || url.startsWith('http://') || url.startsWith('https://')) return url;
     return '';
 }
 async function safeFetch(url, options={}) { if (adminToken) options.headers = { ...options.headers, 'Authorization': `Bearer ${adminToken}` }; try { const res = await fetch(url, options); if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || `HTTP ${res.status}`); return await res.json(); } catch(e) { mostrarToast(e.message, true); throw e; } }
