@@ -864,79 +864,10 @@ function renderPaginaConfiguracion() {
         </div>
     `;
     
+    // Llamado directo a la carga de datos de la base de datos sin duplicaciones
     setTimeout(() => {
-        if (window.configuracion) {
-            const d = window.configuracion;
-            if (d.logo) {
-                const img = document.getElementById('logo-preview-img');
-                if (img) { img.src = d.logo; img.style.display = 'block'; }
-                const placeholder = document.getElementById('logo-placeholder');
-                if (placeholder) placeholder.style.display = 'none';
-            }
-            if (d.empresa) {
-                let emp = typeof d.empresa === 'string' ? JSON.parse(d.empresa) : d.empresa;
-                if (document.getElementById('empresa-nombre')) document.getElementById('empresa-nombre').value = emp.nombre || '';
-                if (document.getElementById('empresa-telefono')) document.getElementById('empresa-telefono').value = emp.telefono || '';
-                if (document.getElementById('empresa-email')) document.getElementById('empresa-email').value = emp.email || '';
-                if (document.getElementById('empresa-direccion')) document.getElementById('empresa-direccion').value = emp.direccion || '';
-            }
-            if (d.horarios) {
-                let hor = typeof d.horarios === 'string' ? JSON.parse(d.horarios) : d.horarios;
-                if (document.getElementById('horario-lv')) document.getElementById('horario-lv').value = hor.lunesViernes || '';
-                if (document.getElementById('horario-sab')) document.getElementById('horario-sab').value = hor.sabados || '';
-                if (document.getElementById('horario-dom')) document.getElementById('horario-dom').value = hor.domingos || '';
-            }
-            if (d.redes) {
-                let red = typeof d.redes === 'string' ? JSON.parse(d.redes) : d.redes;
-                if (document.getElementById('red-instagram')) document.getElementById('red-instagram').value = red.instagram || '';
-                if (document.getElementById('red-facebook')) document.getElementById('red-facebook').value = red.facebook || '';
-                if (document.getElementById('red-tiktok')) document.getElementById('red-tiktok').value = red.tiktok || '';
-                if (document.getElementById('red-whatsapp')) document.getElementById('red-whatsapp').value = red.whatsapp || '';
-            }
-            if (d.pagos) {
-                let pag = typeof d.pagos === 'string' ? JSON.parse(d.pagos) : d.pagos;
-                if (document.getElementById('pago-alias')) document.getElementById('pago-alias').value = pag.alias || '';
-                if (document.getElementById('pago-cbu')) document.getElementById('pago-cbu').value = pag.cbu || '';
-                if (document.getElementById('pago-banco')) document.getElementById('pago-banco').value = pag.banco || '';
-                if (document.getElementById('pago-titular')) document.getElementById('pago-titular').value = pag.titular || '';
-            }
-            if (d.diseno) {
-                let dis = typeof d.diseno === 'string' ? JSON.parse(d.diseno) : d.diseno;
-                if (document.getElementById('tienda-color-primary')) document.getElementById('tienda-color-primary').value = dis.colorPrimario || '#1a1a1a';
-                if (document.getElementById('tienda-color-secondary')) document.getElementById('tienda-color-secondary').value = dis.colorSecundario || '#c9a96e';
-                if (document.getElementById('tienda-color-bg')) document.getElementById('tienda-color-bg').value = dis.colorFondo || '#fafafa';
-                if (document.getElementById('tienda-color-text')) document.getElementById('tienda-color-text').value = dis.colorTexto || '#1a1a1a';
-            }
-            if (d.tienda) {
-                let tnd = typeof d.tienda === 'string' ? JSON.parse(d.tienda) : d.tienda;
-                if (document.getElementById('tienda-titulo')) document.getElementById('tienda-titulo').value = tnd.titulo || '';
-                if (document.getElementById('tienda-mensaje')) document.getElementById('tienda-mensaje').value = tnd.mensajeBienvenida || '';
-                setTiendaHabilitada(tnd.habilitada !== false);
-            }
-            if (d.mayorista) {
-                let may = typeof d.mayorista === 'string' ? JSON.parse(d.mayorista) : d.mayorista;
-                mayoristaHabilitado = may.habilitado || false;
-                mayoristaModo = may.modo || 'cantidad';
-                if (document.getElementById('mayoristaCantidad')) document.getElementById('mayoristaCantidad').value = may.valorCantidad || 3;
-                if (document.getElementById('mayoristaMonto')) document.getElementById('mayoristaMonto').value = formatearNumero(may.valorMonto || 80000);
-                selectMayoristaModo(mayoristaModo);
-                
-                const pnl = document.getElementById('mayoristaPanel');
-                const btn = document.getElementById('btnMayoristaToggle');
-                if (!mayoristaHabilitado) {
-                    if (pnl) pnl.style.display = 'none';
-                    if (btn) { btn.innerHTML = '<i class="fas fa-toggle-off"></i> Desactivado'; btn.style.background = '#64748b'; }
-                } else {
-                    if (pnl) pnl.style.display = 'block';
-                    if (btn) { btn.innerHTML = '<i class="fas fa-toggle-on"></i> Activado'; btn.style.background = '#10b981'; }
-                }
-            }
-            if (window.metodosEnvio && document.getElementById('metodos-envio-lista')) {
-                document.getElementById('metodos-envio-lista').value = window.metodosEnvio.join('\n');
-            } else if (typeof metodosEnvio !== 'undefined' && document.getElementById('metodos-envio-lista')) {
-                document.getElementById('metodos-envio-lista').value = metodosEnvio.join('\n');
-            }
-        }
+        cargarConfiguracion();
+        cargarMetodosEnvio();
     }, 50);
     
     return html;
