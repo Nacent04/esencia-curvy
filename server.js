@@ -50,13 +50,13 @@ async function initDB() {
                 destacado INTEGER DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS variantes (
-    id SERIAL PRIMARY KEY,
-    "productoId" BIGINT NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
-    nombre TEXT NOT NULL,
-    stock INTEGER DEFAULT 0,
-    foto TEXT DEFAULT '',
-    foto_mobile TEXT DEFAULT ''
-);
+                id SERIAL PRIMARY KEY,
+                "productoId" BIGINT NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+                nombre TEXT NOT NULL,
+                stock INTEGER DEFAULT 0,
+                foto TEXT DEFAULT '',
+                foto_mobile TEXT DEFAULT ''
+            );
             CREATE TABLE IF NOT EXISTS categorias (
                 id BIGINT PRIMARY KEY,
                 nombre TEXT NOT NULL,
@@ -183,7 +183,7 @@ async function initDB() {
                 "diferenciaEfectivo" REAL DEFAULT 0,
                 "diferenciaTransferencia" REAL DEFAULT 0,
                 "cantidadVentas" INTEGER DEFAULT 0,
-                estado TEXT DEFAULT 'cerrada',
+                "estado" TEXT DEFAULT 'cerrada',
                 "cierreTimestamp" BIGINT
             );
             CREATE TABLE IF NOT EXISTS costos_producto (
@@ -217,10 +217,10 @@ const configInicial = {
     pagos: JSON.stringify({ alias: "", cbu: "", banco: "", titular: "" }),
     mayorista: JSON.stringify({ habilitado: false, modo: "cantidad", valorCantidad: 3, valorMonto: 80000 }),
     tienda: JSON.stringify({ habilitada: true, titulo: "ESENCIA CURVY", mensajeBienvenida: "Calidad y confort", retiroLocal: true }),
-    diseno: JSON.stringify({ colorPrimario: "#1a1a1a", colorSecundario: "#c9a96e", colorFondo: "#fafafa", colorTexto: "#1a1a1a" }),
+    diseno: JSON.stringify({ colorPrimario: "#4A3728", colorSecundario: "#D4A373", colorFondo: "#FEFAE0", colorTexto: "#4A3728" }),
     registroObligatorio: 'true',
-    heroConfig: JSON.stringify({ titulo: "ESENCIA CURVY", subtitulo: "Blanquería premium", badge: "✦ Precios especiales" }),
-    seccionesDestacadas: JSON.stringify([{ id: "dest-1", titulo: "Novedades", tipo: "categoria", valor: "Toallones", limite: 4 }]),
+    heroConfig: JSON.stringify({ titulo: "ESENCIA CURVY", subtitulo: "Moda curvy premium", badge: "✦ Colección Exclusiva" }),
+    seccionesDestacadas: JSON.stringify([{ id: "dest-1", titulo: "Novedades", tipo: "categoria", valor: "Vestidos", limite: 4 }]),
     plantilla: 'moderna',
     icono: 'store'
 };
@@ -321,6 +321,9 @@ app.use(passport.session());
 app.use('/uploads', express.static('uploads')); 
 app.use(express.static('public'));
 
+/* ==========================================================================
+   CONFIGURACIÓN REVISADA Y CORRECTA DE PASSPORT GOOGLE STRATEGY
+   ========================================================================== */
 passport.use(new GoogleStrategy({ 
     clientID: GOOGLE_CLIENT_ID, 
     clientSecret: GOOGLE_CLIENT_SECRET, 
@@ -363,32 +366,6 @@ passport.use(new GoogleStrategy({
         return done(error, null);
     }
 }));
-
-    async (accessToken, refreshToken, profile, done) => {
-        try {
-            console.log('🔵 Google login:', profile.emails[0].value);
-            const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [profile.emails[0].value]);
-            let u = result.rows[0];
-            if (!u) {
-                const id = 'USR-' + Date.now();
-                await pool.query(
-                    'INSERT INTO usuarios (id, nombre, apellido, email, "googleId", foto, rol, "datosCompletos") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-                    [id, profile.name?.givenName || '', profile.name?.familyName || '', 
-                     profile.emails[0].value, profile.id, profile.photos?.[0]?.value || '', 'cliente', 1]
-                );
-                const newResult = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
-                u = newResult.rows[0];
-                console.log('✅ Usuario creado:', u.email);
-            } else {
-                console.log('✅ Usuario existente:', u.email);
-            }
-            return done(null, u);
-        } catch(e) { 
-            console.error('❌ Error Google Strategy:', e.message);
-            return done(e, null); 
-        }
-    }
-));
 
 passport.serializeUser((user, done) => { done(null, user.id); });
 
@@ -793,7 +770,7 @@ app.post('/tienda/confirmar-pedido', async (req, res) => {
         await pool.query('UPDATE pedidos SET estado=$1,pin=$2,"ventaId"=$3 WHERE id=$4', ['confirmado', pin, vid, p.id]);
         await logActividad('Admin', 'CONFIRMAR_PEDIDO', `Pedido ${p.id}`, req);
         const cliente = JSON.parse(p.cliente||'{}');
-        if (cliente.email) await enviarEmail(cliente.email, `Pedido #${p.id} confirmado`, `<h1>ESENCIA CURVY</h1><h2>¡Pedido confirmado!</h2><p>Tu PIN de retiro: <strong>${pin}</strong></p><p>Total: ${fmt.format(p.total)}</p>`);
+        if (cliente.email) await enviarEmail(cliente.email, `Pedido #${p.id} confirmed`, `<h1>ESENCIA CURVY</h1><h2>¡Pedido confirmado!</h2><p>Tu PIN de retiro: <strong>${pin}</strong></p><p>Total: ${fmt.format(p.total)}</p>`);
         res.json({ success: true, ventaId: vid, pin });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -929,7 +906,7 @@ app.post('/admin/guardar-costos', adminMiddleware('ventas'), async (req, res) =>
                 [costo||0, flete||0, JSON.stringify(adicionales||[]), Date.now(), productoId]);
         } else {
             await pool.query('INSERT INTO costos_producto ("productoId", costo, flete, adicionales, "fechaActualizacion") VALUES ($1,$2,$3,$4,$5)',
-                [productoId, costo||0, flete||0, JSON.stringify(adicionales||[]), Date.now()]);
+                [productoId, costo||0, flete||0, JSON.stringify(adicionales||[]), Date.now(), productoId]);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -991,7 +968,6 @@ app.post('/admin/apertura-caja-profesional', adminMiddleware('ventas'), async (r
             if (existe.estado === 'abierta') {
                 return res.status(400).json({ error: 'La caja ya se encuentra abierta' });
             }
-            // Si ya existe pero está cerrada, se reabre limpiando los datos de cierre previos
             await pool.query(`
                 UPDATE caja_profesional 
                 SET estado = 'abierta', 
@@ -1010,7 +986,6 @@ app.post('/admin/apertura-caja-profesional', adminMiddleware('ventas'), async (r
             
             await logActividad(req.admin.nombre, 'REAPERTURA_CAJA', `Ef: ${fmt.format(montoEfectivo||0)} | Transf: ${fmt.format(montoTransferencia||0)}`, req);
         } else {
-            // Si no existe registro para el día de hoy, se inserta una nueva apertura
             await pool.query(`
                 INSERT INTO caja_profesional (fecha, "aperturaTimestamp", "abiertaPor", "montoInicialEfectivo", "montoInicialTransferencia", estado) 
                 VALUES ($1,$2,$3,$4,$5,'abierta')
@@ -1039,7 +1014,6 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
             )
         `);
         
-        // Obtener los formatos de fecha exactos de hoy
         const ahora = new Date();
         const d = ahora.getDate();
         const m = ahora.getMonth() + 1;
@@ -1047,7 +1021,6 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
         const f1 = `${d}/${m}/${y}`;
         const f2 = `${d.toString().padStart(2,'0')}/${m.toString().padStart(2,'0')}/${y}`;
 
-        // CANDADO ESTRICTO: Verificar si hay una caja abierta HOY
         const cajaAbiertaHoy = (await pool.query(
             "SELECT * FROM caja_profesional WHERE estado = 'abierta' AND (fecha = $1 OR fecha = $2)", 
             [f1, f2]
@@ -1074,12 +1047,10 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
     }
 });
 
-// ENDPOINT DE CIERRE CON FILTRADO EXACTO POR HORARIO DE APERTURA Y CIERRE
 app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req, res) => {
     try {
         const { efectivoEntregado } = req.body;
         
-        // 1. Encontrar la caja que está abierta actualmente
         const caja = (await pool.query("SELECT * FROM caja_profesional WHERE estado = 'abierta'")).rows[0];
         if (!caja) return res.status(400).json({ error: 'No hay ninguna caja abierta en el sistema' });
         
@@ -1088,14 +1059,12 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             return res.status(403).json({ error: `Esta caja fue abierta por ${abiertaPor}. Solo ese usuario o un Administrador pueden cerrarla.` });
         }
 
-        // 2. Determinar los límites de tiempo exactos del turno actual
         const aperturaTimestamp = Number(caja.aperturaTimestamp || caja.aperturatimestamp || 0);
         const cierreTimestamp = Date.now(); 
         const hoyCajaStr = caja.fecha; 
 
         const montoInicialEfectivo = parseFloat(caja.montoInicialEfectivo || caja.montoinicialefectivo || 0);
 
-        // 3. Traer SOLO las ventas facturadas entre la apertura y el cierre de esta caja
         const ventasAdmin = (await pool.query(
             'SELECT * FROM ventas WHERE "fechaTimestamp" >= $1 AND "fechaTimestamp" <= $2', 
             [aperturaTimestamp, cierreTimestamp]
@@ -1109,14 +1078,12 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             }
         });
 
-        // 4. Traer SOLO los pedidos web confirmados como 'abonado' dentro de este mismo rango de tiempo
         const pedidosWebQuery = await pool.query(
             'SELECT COALESCE(SUM(total),0) as total FROM pedidos WHERE estado = \'abonado\' AND "fechaTimestamp" >= $1 AND "fechaTimestamp" <= $2', 
             [aperturaTimestamp, cierreTimestamp]
         );
         const ventasWebTransferencia = parseFloat(pedidosWebQuery.rows[0].total || 0);
 
-        // 5. Traer SOLO los gastos anotados durante la vigencia de esta caja abierta
         await pool.query(`CREATE TABLE IF NOT EXISTS gastos (id SERIAL PRIMARY KEY, fecha TEXT, tipo TEXT, nombre TEXT, monto NUMERIC, usuario TEXT, timestamp BIGINT)`);
         const gastosRows = (await pool.query(
             'SELECT * FROM gastos WHERE timestamp >= $1 AND timestamp <= $2', 
@@ -1139,14 +1106,12 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             }
         });
 
-        // 6. Aplicar las fórmulas matemáticas solicitadas
         const totalEsperadoEfectivo = montoInicialEfectivo + ventasEfectivo - totalGastosEfectivo;
         const diferenciaEfectivo = totalEsperadoEfectivo - (efectivoEntregado || 0);
         const totalEsperadoTransferencia = ventasTransferencia + ventasWebTransferencia - totalGastosTransferencia;
 
         const accionLog = abiertaPor !== req.admin.nombre ? 'CIERRE_FORZADO_CAJA' : 'CIERRE_CAJA';
 
-        // 7. Asentar el cierre físico en la base de datos
         await pool.query(`UPDATE caja_profesional SET estado='cerrada', "cerradaPor"=$1, "cierreTimestamp"=$2,
             "efectivoEntregado"=$3, "ventasEfectivo"=$4, "ventasTransferencia"=$5,
             "ventasWebTransferencia"=$6, "totalEsperadoEfectivo"=$7, "totalEsperadoTransferencia"=$8,
@@ -1239,6 +1204,7 @@ app.post('/admin/dashboard/data', adminMiddleware('dashboard'), async (req, res)
         const efectivoPorDia = [0, 0, 0, 0, 0, 0, 0];
         const transferenciaPorDia = [0, 0, 0, 0, 0, 0, 0];
         
+        const d_actual = new Date();
         ventasQuery.rows.forEach(v => {
             const ts = Number(v.fechaTimestamp);
             if (!isNaN(ts)) {
@@ -1307,9 +1273,6 @@ app.get('/api/mis-pedidos', authMiddleware, async (req, res) => {
     res.json({ lista: pedidos.map(p => ({ ...p, items: JSON.parse(p.items||'[]'), cliente: JSON.parse(p.cliente||'{}') })) });
 });
 
-// ============================================
-// SISTEMA DE BACKUP TOTAL
-// ============================================
 async function exportarTabla(nombreTabla) {
     const result = await pool.query(`SELECT * FROM ${nombreTabla}`);
     return result.rows;
