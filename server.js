@@ -949,46 +949,123 @@ app.post('/admin/apertura-caja-profesional', adminMiddleware('ventas'), async (r
     }
 });
 
+app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS gastos (
+                id SERIAL PRIMARY KEY,
+                fecha TEXT,
+                tipo TEXT,
+                nombre TEXT,
+                monto NUMERIC,
+                usuario TEXT,
+                timestamp BIGINT
+            )
+        `);
+        const { tipo, nombre, monto } = req.body;
+        const hoy = new Date().toLocaleDateString('es-AR');
+        await pool.query(`
+            INSERT INTO gastos (fecha, tipo, nombre, monto, usuario, timestamp)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        `, [hoy, tipo, nombre, parseFloat(monto), req.admin.nombre, Date.now()]);
+        
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req, res) => {
     try {
-        const { efectivoEntregado, transferenciaEntregada } = req.body;
+        const { efectivoEntregado } = req.body;
         const hoy = new Date().toLocaleDateString('es-AR');
+        
         const caja = (await pool.query("SELECT * FROM caja_profesional WHERE fecha = $1 AND estado = 'abierta'", [hoy])).rows[0];
         if (!caja) return res.status(400).json({ error: 'No hay caja abierta hoy' });
         
-        // Validación de usuario obligatorio o cierre forzado por perfil administrador
-        if (caja.abiertapor !== req.admin.nombre && req.admin.rol !== 'admin') {
-            return res.status(403).json({ error: `Esta caja fue abierta por ${caja.abiertapor}. Solo ese usuario o un Administrador pueden cerrarla.` });
+        const abiertaPor = caja.abiertaPor || caja.abiertapor;
+        if (abiertaPor !== req.admin.nombre && req.admin.rol !== 'admin') {
+            return res.status(403).json({ error: `Esta caja fue abierta por ${abiertaPor}. Solo ese usuario o un Administrador pueden cerrarla.` });
         }
 
+        // Corrección de mayúsculas/minúsculas para el Monto Inicial de la Base de Datos
+        const montoInicialEfectivo = parseFloat(caja.montoInicialEfectivo || caja.montoinicialefectivo || 0);
+        const aperturaTimestamp = caja.aperturaTimestamp || caja.aperturatimestamp;
+
+        // Ventas del panel de administración del día actual
         const ventasAdmin = (await pool.query("SELECT * FROM ventas WHERE fecha LIKE $1", [`%${hoy}%`])).rows;
-        let ventasEfectivo = 0, ventasTransferencia = 0, ventasWebTransferencia = 0;
+        let ventasEfectivo = 0, ventasTransferencia = 0;
         ventasAdmin.forEach(v => {
             if (v.origen === 'admin') {
                 if (v.metodoPago === 'efectivo') ventasEfectivo += v.total;
                 if (v.metodoPago === 'transferencia') ventasTransferencia += v.total;
             }
-            if (v.origen === 'tienda') ventasWebTransferencia += v.total;
         });
-        const totalEsperadoEfectivo = caja.montoinicialefectivo + ventasEfectivo;
-        const diferenciaEfectivo = (efectivoEntregado||0) - totalEsperadoEfectivo;
-        const totalEsperadoTransferencia = caja.montoinicialtransferencia + ventasTransferencia + ventasWebTransferencia;
-        const diferenciaTransferencia = (transferenciaEntregada||0) - totalEsperadoTransferencia;
+
+        // Pedidos de la tienda web que pasaron a estar confirmados como 'abonado' hoy
+        const pedidosWebQuery = await pool.query("SELECT COALESCE(SUM(total),0) as total FROM pedidos WHERE estado = 'abonado' AND fecha LIKE $1", [`%${hoy}%`]);
+        const ventasWebTransferencia = parseFloat(pedidosWebQuery.rows[0].total || 0);
+
+        // Procesar Gastos del día
+        await pool.query(`CREATE TABLE IF NOT EXISTS gastos (id SERIAL PRIMARY KEY, fecha TEXT, tipo TEXT, nombre TEXT, monto NUMERIC, usuario TEXT, timestamp BIGINT)`);
+        const gastosRows = (await pool.query("SELECT * FROM gastos WHERE fecha = $1", [hoy])).rows;
         
-        // Identificar tipo de acción para el registro de auditoría
-        const accionLog = caja.abiertapor !== req.admin.nombre ? 'CIERRE_FORZADO_CAJA' : 'CIERRE_CAJA';
+        let listaGastosEfectivo = [];
+        let listaGastosTransferencia = [];
+        let totalGastosEfectivo = 0;
+        let totalGastosTransferencia = 0;
+
+        gastosRows.forEach(g => {
+            const m = parseFloat(g.monto || 0);
+            if (g.tipo === 'efectivo') {
+                totalGastosEfectivo += m;
+                listaGastosEfectivo.push({ nombre: g.nombre, monto: m });
+            } else if (g.tipo === 'transferencia') {
+                totalGastosTransferencia += m;
+                listaGastosTransferencia.push({ nombre: g.nombre, monto: m });
+            }
+        });
+
+        // Cálculos exactos según reglas del ticket
+        const totalEsperadoEfectivo = montoInicialEfectivo + ventasEfectivo - totalGastosEfectivo;
+        const diferenciaEfectivo = totalEsperadoEfectivo - (efectivoEntregado || 0);
+        const totalEsperadoTransferencia = ventasTransferencia + ventasWebTransferencia - totalGastosTransferencia;
+
+        const accionLog = abiertaPor !== req.admin.nombre ? 'CIERRE_FORZADO_CAJA' : 'CIERRE_CAJA';
 
         await pool.query(`UPDATE caja_profesional SET estado='cerrada', "cerradaPor"=$1, "cierreTimestamp"=$2,
-            "efectivoEntregado"=$3, "transferenciaEntregada"=$4, "ventasEfectivo"=$5, "ventasTransferencia"=$6,
-            "ventasWebTransferencia"=$7, "totalEsperadoEfectivo"=$8, "totalEsperadoTransferencia"=$9,
-            "diferenciaEfectivo"=$10, "diferenciaTransferencia"=$11, "cantidadVentas"=$12 WHERE fecha=$13 AND estado='abierta'`,
-            [req.admin.nombre, Date.now(), efectivoEntregado||0, transferenciaEntregada||0, ventasEfectivo, ventasTransferencia,
-             ventasWebTransferencia, totalEsperadoEfectivo, totalEsperadoTransferencia, diferenciaEfectivo, diferenciaTransferencia,
+            "efectivoEntregado"=$3, "ventasEfectivo"=$4, "ventasTransferencia"=$5,
+            "ventasWebTransferencia"=$6, "totalEsperadoEfectivo"=$7, "totalEsperadoTransferencia"=$8,
+            "diferenciaEfectivo"=$9, "cantidadVentas"=$10 WHERE fecha=$11 AND estado='abierta'`,
+            [req.admin.nombre, Date.now(), efectivoEntregado||0, ventasEfectivo, ventasTransferencia,
+             ventasWebTransferencia, totalEsperadoEfectivo, totalEsperadoTransferencia, diferenciaEfectivo,
              ventasAdmin.length, hoy]);
              
-        await logActividad(req.admin.nombre, accionLog, `Dif Ef: ${fmt.format(diferenciaEfectivo)} | Dif Transf: ${fmt.format(diferenciaTransferencia)}`, req);
-        res.json({ success: true, resumen: { ventasEfectivo, ventasTransferencia, ventasWebTransferencia, totalEsperadoEfectivo, totalEsperadoTransferencia, diferenciaEfectivo, diferenciaTransferencia, cantidadVentas: ventasAdmin.length, montoInicialEfectivo: caja.montoinicialefectivo, montoInicialTransferencia: caja.montoinicialtransferencia } });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+        await logActividad(req.admin.nombre, accionLog, `Dif Ef: ${fmt.format(diferenciaEfectivo)}`, req);
+        
+        res.json({ 
+            success: true, 
+            resumen: { 
+                abiertaPor,
+                aperturaTimestamp,
+                montoInicialEfectivo, 
+                ventasEfectivo, 
+                totalGastosEfectivo,
+                listaGastosEfectivo,
+                totalEsperadoEfectivo, 
+                efectivoEntregado,
+                diferenciaEfectivo,
+                ventasTransferencia, 
+                ventasWebTransferencia, 
+                totalGastosTransferencia,
+                listaGastosTransferencia,
+                totalEsperadoTransferencia,
+                cantidadVentas: ventasAdmin.length
+            } 
+        });
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 app.post('/admin/estado-caja-profesional', adminMiddleware('ventas'), async (req, res) => {
