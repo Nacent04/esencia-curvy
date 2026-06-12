@@ -924,12 +924,18 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
         const hoy = new Date().toLocaleDateString('es-AR');
         const caja = (await pool.query("SELECT * FROM caja_profesional WHERE fecha = $1 AND estado = 'abierta'", [hoy])).rows[0];
         if (!caja) return res.status(400).json({ error: 'No hay caja abierta hoy' });
+        
+        // Validación de usuario obligatorio o cierre forzado por perfil administrador
+        if (caja.abiertapor !== req.admin.nombre && req.admin.rol !== 'admin') {
+            return res.status(403).json({ error: `Esta caja fue abierta por ${caja.abiertapor}. Solo ese usuario o un Administrador pueden cerrarla.` });
+        }
+
         const ventasAdmin = (await pool.query("SELECT * FROM ventas WHERE fecha LIKE $1", [`%${hoy}%`])).rows;
         let ventasEfectivo = 0, ventasTransferencia = 0, ventasWebTransferencia = 0;
         ventasAdmin.forEach(v => {
             if (v.origen === 'admin') {
-                if (v["metodoPago"] === 'efectivo') ventasEfectivo += v.total;
-                if (v["metodoPago"] === 'transferencia') ventasTransferencia += v.total;
+                if (v.metodoPago === 'efectivo') ventasEfectivo += v.total;
+                if (v.metodoPago === 'transferencia') ventasTransferencia += v.total;
             }
             if (v.origen === 'tienda') ventasWebTransferencia += v.total;
         });
@@ -937,6 +943,10 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
         const diferenciaEfectivo = (efectivoEntregado||0) - totalEsperadoEfectivo;
         const totalEsperadoTransferencia = caja.montoinicialtransferencia + ventasTransferencia + ventasWebTransferencia;
         const diferenciaTransferencia = (transferenciaEntregada||0) - totalEsperadoTransferencia;
+        
+        // Identificar tipo de acción para el registro de auditoría
+        const accionLog = caja.abiertapor !== req.admin.nombre ? 'CIERRE_FORZADO_CAJA' : 'CIERRE_CAJA';
+
         await pool.query(`UPDATE caja_profesional SET estado='cerrada', "cerradaPor"=$1, "cierreTimestamp"=$2,
             "efectivoEntregado"=$3, "transferenciaEntregada"=$4, "ventasEfectivo"=$5, "ventasTransferencia"=$6,
             "ventasWebTransferencia"=$7, "totalEsperadoEfectivo"=$8, "totalEsperadoTransferencia"=$9,
@@ -944,7 +954,8 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             [req.admin.nombre, Date.now(), efectivoEntregado||0, transferenciaEntregada||0, ventasEfectivo, ventasTransferencia,
              ventasWebTransferencia, totalEsperadoEfectivo, totalEsperadoTransferencia, diferenciaEfectivo, diferenciaTransferencia,
              ventasAdmin.length, hoy]);
-        await logActividad(req.admin.nombre, 'CIERRE_CAJA', `Dif Ef: ${fmt.format(diferenciaEfectivo)} | Dif Transf: ${fmt.format(diferenciaTransferencia)}`, req);
+             
+        await logActividad(req.admin.nombre, accionLog, `Dif Ef: ${fmt.format(diferenciaEfectivo)} | Dif Transf: ${fmt.format(diferenciaTransferencia)}`, req);
         res.json({ success: true, resumen: { ventasEfectivo, ventasTransferencia, ventasWebTransferencia, totalEsperadoEfectivo, totalEsperadoTransferencia, diferenciaEfectivo, diferenciaTransferencia, cantidadVentas: ventasAdmin.length, montoInicialEfectivo: caja.montoinicialefectivo, montoInicialTransferencia: caja.montoinicialtransferencia } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
