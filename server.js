@@ -325,7 +325,45 @@ passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID, 
     clientSecret: GOOGLE_CLIENT_SECRET, 
     callbackURL: CALLBACK_URL
-},
+}, async (accessToken, refreshToken, profile, done) => {
+    try {
+        const email = profile.emails?.[0]?.value;
+        if (!email) return done(new Error('No se recibió un email válido de Google'), null);
+
+        // 1. Buscamos si el usuario ya existe en la base de datos por su email o googleId
+        let userResult = await pool.query('SELECT * FROM usuarios WHERE email = $1 OR "googleId" = $2', [email, profile.id]);
+        
+        if (userResult.rows.length > 0) {
+            let usuario = userResult.rows[0];
+            
+            // Si existía por mail pero no tenía el id de Google vinculado, se lo agregamos
+            if (!usuario.googleId) {
+                await pool.query('UPDATE usuarios SET "googleId" = $1, foto = $2 WHERE id = $3', [profile.id, profile.photos?.[0]?.value || '', usuario.id]);
+                usuario.googleId = profile.id;
+            }
+            return done(null, usuario);
+        }
+
+        // 2. Si no existe, creamos el usuario NUEVO y le clavamos "datosCompletos" en 0
+        const nuevoId = 'usr_' + Math.random().toString(36).substr(2, 9);
+        const nombre = profile.name?.givenName || '';
+        const apellido = profile.name?.familyName || '';
+        const foto = profile.photos?.[0]?.value || '';
+
+        const insertResult = await pool.query(
+            'INSERT INTO usuarios (id, nombre, apellido, email, "googleId", foto, rol, "datosCompletos") VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [nuevoId, nombre, apellido, email, profile.id, foto, 'cliente', 0]
+        );
+
+        console.log('✨ Nuevo usuario registrado via Google:', email);
+        return done(null, insertResult.rows[0]);
+
+    } catch (error) {
+        console.error('❌ Error detallado en Google Strategy:', error);
+        return done(error, null);
+    }
+}));
+
     async (accessToken, refreshToken, profile, done) => {
         try {
             console.log('🔵 Google login:', profile.emails[0].value);
@@ -394,17 +432,27 @@ app.get('/auth/google/callback',
     passport.authenticate('google', { failureRedirect: '/login?error=google' }),
     async (req, res) => {
         try {
-            console.log('✅ Usuario autenticado:', req.user?.email);
+            console.log('✅ Usuario autenticado por Google:', req.user?.email);
             if (!req.user) return res.redirect('/login?error=nouser');
+            
+            // Generamos el token de acceso
             const token = jwt.sign({ id: req.user.id, email: req.user.email, nombre: req.user.nombre, rol: req.user.rol }, JWT_SECRET, { expiresIn: '7d' });
+            
+            // Verificamos si es la primera vez que entra o si le faltan registrar sus datos obligatorios
+            const result = await pool.query('SELECT "datosCompletos" FROM usuarios WHERE id = $1', [req.user.id]);
+            const datosCompletos = result.rows[0]?.datosCompletos ?? 0;
+
+            // Si datosCompletos es 0 o falso, lo mandamos directo a registrar sus datos en la web
+            const rutaRedireccion = (datosCompletos == 0) ? '/completar-datos' : '/tienda';
+
             res.send(`
                 <!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirigiendo...</title>
                 <script>
                     localStorage.setItem('token', '${token}');
                     localStorage.setItem('usuario', JSON.stringify({id:'${req.user.id}',nombre:'${req.user.nombre||''}',apellido:'${req.user.apellido||''}',email:'${req.user.email}'}));
-                    window.location.href = '/tienda';
+                    window.location.href = '${rutaRedireccion}';
                 </script></head><body><p>Redirigiendo...</p></body></html>`);
-        } catch(e) { console.error('❌ Error en callback:', e); res.redirect('/login?error=server'); }
+        } catch(e) { console.error('❌ Error en callback Google:', e); res.redirect('/login?error=server'); }
     }
 );
 
