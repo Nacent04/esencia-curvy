@@ -445,29 +445,266 @@ function renderPaginaPedidosWeb() { return `<div class="panel"><h3><i class="fas
 function renderPaginaPerfiles() { return `<div class="panel"><h3 style="display:flex;justify-content:space-between"><span><i class="fas fa-users-cog"></i> Gestión de Perfiles</span><button onclick="abrirModalCrearPerfil()" class="tab-btn btn-success"><i class="fas fa-user-plus"></i> Nuevo Perfil</button></h3><div id="lista-perfiles"></div></div>`; }
 function renderPaginaLogs() { return `<div class="panel"><h3><i class="fas fa-history"></i> Registro de Actividad</h3><div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"><input type="text" id="logs-filtro" placeholder="🔍 Buscar..." style="flex:1;min-width:200px" onkeyup="cargarLogs()"><input type="date" id="logs-desde" style="width:150px" onchange="cargarLogs()"><input type="date" id="logs-hasta" style="width:150px" onchange="cargarLogs()"><button onclick="document.getElementById('logs-filtro').value='';document.getElementById('logs-desde').value='';document.getElementById('logs-hasta').value='';cargarLogs();" class="tab-btn">Limpiar</button></div><div style="overflow-x:auto"><table style="width:100%"><thead><tr><th>Fecha</th><th>Admin</th><th>Acción</th><th>Detalles</th></tr></thead><tbody id="logs-body"></tbody></table></div></div>`; }
 function renderPaginaEdicionWeb() { return `<div class="panel"><h3><i class="fas fa-paint-brush"></i> Edición Web</h3><div class="config-section"><h4><i class="fas fa-swatchbook"></i> Plantillas de Tienda</h4><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px"><div class="plantilla-card" style="border:2px solid #6366f1;border-radius:16px;padding:16px;text-align:center;cursor:pointer" onclick="seleccionarPlantilla('moderna')"><div style="background:linear-gradient(135deg,#1a1a1a,#333);height:100px;border-radius:12px;margin-bottom:8px"></div><strong>Moderna</strong></div><div class="plantilla-card" style="border:2px solid #e2e8f0;border-radius:16px;padding:16px;text-align:center;cursor:pointer" onclick="seleccionarPlantilla('clasica')"><div style="background:linear-gradient(135deg,#8B5E3C,#D4A574);height:100px;border-radius:12px;margin-bottom:8px"></div><strong>Clásica</strong></div><div class="plantilla-card" style="border:2px solid #e2e8f0;border-radius:16px;padding:16px;text-align:center;cursor:pointer" onclick="seleccionarPlantilla('minimalista')"><div style="background:linear-gradient(135deg,#fafafa,#e2e8f0);height:100px;border-radius:12px;margin-bottom:8px"></div><strong>Minimalista</strong></div></div></div><div class="config-section"><h4><i class="fas fa-icons"></i> Íconos de la Tienda</h4><div style="display:flex;gap:12px;flex-wrap:wrap"><button class="tab-btn" onclick="cambiarIcono('store')"><i class="fas fa-store"></i> Tienda</button><button class="tab-btn" onclick="cambiarIcono('home')"><i class="fas fa-home"></i> Hogar</button><button class="tab-btn" onclick="cambiarIcono('star')"><i class="fas fa-star"></i> Premium</button><button class="tab-btn" onclick="cambiarIcono('gem')"><i class="fas fa-gem"></i> Lujo</button></div></div></div>`; }
+
 function renderPaginaConfiguracion() {
-    const html = `...`; // Tu HTML actual de configuración
+    const html = `
+        <div class="panel">
+            <h3 style="margin-bottom: 24px; color: var(--text-dark); font-size: 22px;">
+                <i class="fas fa-sliders-h"></i> Configuración del Sistema
+            </h3>
+            
+            <div class="config-section">
+                <h3><i class="fas fa-image"></i> Logo de la Empresa</h3>
+                <div class="logo-preview">
+                    <img id="logo-preview-img" src="" style="display:none; max-width:200px; max-height:80px; object-fit:contain;">
+                    <span id="logo-placeholder"><i class="fas fa-store" style="font-size:48px; color:#D4A373;"></i><br><small>Sin Logo Configurado</small></span>
+                </div>
+                <div class="logo-actions" style="margin-top: 12px;">
+                    <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="subirLogo(this)">
+                    <button onclick="document.getElementById('logo-input').click()" class="tab-btn btn-success"><i class="fas fa-upload"></i> Subir Logo</button>
+                    <button onclick="eliminarLogo()" class="tab-btn btn-danger"><i class="fas fa-trash"></i> Eliminar Logo</button>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3><i class="fas fa-building"></i> Datos de la Empresa</h3>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Nombre Comercial</label>
+                        <input type="text" id="empresa-nombre" placeholder="Ej: ESENCIA CURVY">
+                    </div>
+                    <div>
+                        <label class="form-label">Teléfono de Contacto / Local</label>
+                        <input type="text" id="empresa-telefono" placeholder="Ej: 381xxxxxxx">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Email de Notificaciones</label>
+                        <input type="email" id="empresa-email" placeholder="Ej: info@empresa.com">
+                    </div>
+                    <div>
+                        <label class="form-label">Dirección Física</label>
+                        <input type="text" id="empresa-direccion" placeholder="Ej: Av. Alem 123, Tucumán">
+                    </div>
+                </div>
+                
+                <h3 style="margin-top: 24px;"><i class="fas fa-clock"></i> Horarios de Atención</h3>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Lunes a Viernes</label>
+                        <input type="text" id="horario-lv" placeholder="Ej: 9:00 - 13:00 y 17:00 - 20:00">
+                    </div>
+                    <div>
+                        <label class="form-label">Sábados</label>
+                        <input type="text" id="horario-sab" placeholder="Ej: 9:00 - 13:00">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Domingos</label>
+                        <input type="text" id="horario-dom" placeholder="Ej: Cerrado">
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 24px;"><i class="fas fa-share-alt"></i> Redes Sociales</h3>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Instagram (Usuario sin @)</label>
+                        <input type="text" id="red-instagram" placeholder="esencia_curvy">
+                    </div>
+                    <div>
+                        <label class="form-label">Facebook (Slug de página)</label>
+                        <input type="text" id="red-facebook" placeholder="esenciacurvy">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">TikTok (Usuario sin @)</label>
+                        <input type="text" id="red-tiktok" placeholder="esenciacurvy">
+                    </div>
+                    <div>
+                        <label class="form-label">WhatsApp (Número completo sin + ni espacios)</label>
+                        <input type="text" id="red-whatsapp" placeholder="54381XXXXXXX">
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 24px;"><i class="fas fa-university"></i> Datos de Cuentas de Pago</h3>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Alias</label>
+                        <input type="text" id="pago-alias" placeholder="Alias de Mercado Pago o Banco">
+                    </div>
+                    <div>
+                        <label class="form-label">CBU / CVU</label>
+                        <input type="text" id="pago-cbu" placeholder="22 dígitos numéricos">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Banco / Entidad Financiera</label>
+                        <input type="text" id="pago-banco" placeholder="Ej: Banco Macro">
+                    </div>
+                    <div>
+                        <label class="form-label">Titular de la Cuenta</label>
+                        <input type="text" id="pago-titular" placeholder="Nombre completo del titular">
+                    </div>
+                </div>
+                
+                <button onclick="guardarConfiguracion()" class="btn-confirm" style="margin-top: 16px; background: var(--primary);"><i class="fas fa-save"></i> Guardar Configuración General</button>
+            </div>
+
+            <div class="config-section">
+                <h3><i class="fas fa-globe"></i> Estado y Textos de la Tienda Web</h3>
+                <label class="form-label">Disponibilidad de la Plataforma Online</label>
+                <div class="entrega-tabs" style="margin-bottom: 16px; max-width: 300px;">
+                    <button id="tienda-on" class="entrega-btn" onclick="setTiendaHabilitada(true)"><i class="fas fa-check"></i> Habilitada</button>
+                    <button id="tienda-off" class="entrega-btn" onclick="setTiendaHabilitada(false)"><i class="fas fa-times"></i> En Mantenimiento</button>
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">Título Principal del Home</label>
+                        <input type="text" id="tienda-titulo">
+                    </div>
+                    <div>
+                        <label class="form-label">Slogan o Mensaje de Bienvenida</label>
+                        <input type="text" id="tienda-mensaje">
+                    </div>
+                </div>
+                <button onclick="guardarConfiguracionTienda()" class="btn-confirm" style="margin-top: 16px;"><i class="fas fa-save"></i> Guardar Textos e Interfaz</button>
+            </div>
+
+            <div class="config-section">
+                <h3><i class="fas fa-palette"></i> Paleta de Colores de la Tienda</h3>
+                <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
+                    <div>
+                        <label class="form-label">Color Primario</label>
+                        <input type="color" id="tienda-color-primary" style="padding:4px; height:45px; cursor:pointer;">
+                    </div>
+                    <div>
+                        <label class="form-label">Color Secundario</label>
+                        <input type="color" id="tienda-color-secondary" style="padding:4px; height:45px; cursor:pointer;">
+                    </div>
+                    <div>
+                        <label class="form-label">Color de Fondo</label>
+                        <input type="color" id="tienda-color-bg" style="padding:4px; height:45px; cursor:pointer;">
+                    </div>
+                    <div>
+                        <label class="form-label">Color del Texto</label>
+                        <input type="color" id="tienda-color-text" style="padding:4px; height:45px; cursor:pointer;">
+                    </div>
+                </div>
+                <button onclick="guardarDisenoTienda()" class="btn-confirm" style="margin-top: 20px;"><i class="fas fa-paint-brush"></i> Aplicar Identidad Visual</button>
+            </div>
+
+            <div class="config-section">
+                <h3><i class="fas fa-tags"></i> Sistema de Venta Mayorista Automática</h3>
+                <button id="btnMayoristaToggle" onclick="toggleMayorista()" class="tab-btn btn-warning" style="margin-bottom: 16px;"><i class="fas fa-toggle-on"></i> Alternar Estado</button>
+                
+                <div id="mayoristaPanel" style="background: rgba(0,0,0,0.02); padding: 16px; border-radius: 16px; border: 1px solid #FAEDCD;">
+                    <label class="form-label">Criterio para Activar Descuento en Carrito</label>
+                    <div class="pago-tabs" style="margin-bottom: 16px; gap: 12px;">
+                        <div class="modo-option" data-modo="cantidad" onclick="selectMayoristaModo('cantidad')" style="padding:12px; border-radius:12px;">Mínimo de Unidades</div>
+                        <div class="modo-option" data-modo="monto" onclick="selectMayoristaModo('monto')" style="padding:12px; border-radius:12px;">Monto Mínimo Total ($)</div>
+                    </div>
+                    <div class="form-row">
+                        <div id="configCantidad">
+                            <label class="form-label">Prendas / Artículos Mínimos</label>
+                            <input type="number" id="mayoristaCantidad" value="3" min="1">
+                        </div>
+                        <div id="configMonto">
+                            <label class="form-label">Valor en Dinero Mínimo ($)</label>
+                            <input type="text" id="mayoristaMonto" value="80.000">
+                        </div>
+                    </div>
+                    <button onclick="guardarMayorista()" class="btn-confirm" style="margin-top: 16px; background: #4CAF50;"><i class="fas fa-save"></i> Guardar Parámetros Mayoristas</button>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3><i class="fas fa-shipping-fast"></i> Opciones de Logística y Envíos (Uno por línea)</h3>
+                <textarea id="metodos-envio-lista" rows="5" placeholder="Via Cargo&#10;Correo Argentino&#10;Andreani" style="border-radius:16px; min-height:120px; font-family:inherit; font-size:14px; padding:12px;"></textarea>
+                <button onclick="guardarMetodosEnvio()" class="btn-confirm" style="margin-top: 16px;"><i class="fas fa-save"></i> Actualizar Métodos de Entrega</button>
+            </div>
+        </div>
+    `;
     
-    // Ejecutar después de insertar el HTML
     setTimeout(() => {
-        if(window.configuracion?.empresa) {
-            document.getElementById('empresa-nombre').value = window.configuracion.empresa.nombre || '';
-            document.getElementById('empresa-telefono').value = window.configuracion.empresa.telefono || '';
-            document.getElementById('empresa-email').value = window.configuracion.empresa.email || '';
-            document.getElementById('empresa-direccion').value = window.configuracion.empresa.direccion || '';
-            document.getElementById('horario-lv').value = window.configuracion.horarios?.lunesViernes || '';
-            document.getElementById('horario-sab').value = window.configuracion.horarios?.sabados || '';
-            document.getElementById('horario-dom').value = window.configuracion.horarios?.domingos || '';
-            document.getElementById('red-instagram').value = window.configuracion.redes?.instagram || '';
-            document.getElementById('red-facebook').value = window.configuracion.redes?.facebook || '';
-            document.getElementById('red-tiktok').value = window.configuracion.redes?.tiktok || '';
-            document.getElementById('red-whatsapp').value = window.configuracion.redes?.whatsapp || '';
+        if (window.configuracion) {
+            const d = window.configuracion;
+            if (d.logo) {
+                const img = document.getElementById('logo-preview-img');
+                if (img) { img.src = d.logo; img.style.display = 'block'; }
+                const placeholder = document.getElementById('logo-placeholder');
+                if (placeholder) placeholder.style.display = 'none';
+            }
+            if (d.empresa) {
+                let emp = typeof d.empresa === 'string' ? JSON.parse(d.empresa) : d.empresa;
+                if (document.getElementById('empresa-nombre')) document.getElementById('empresa-nombre').value = emp.nombre || '';
+                if (document.getElementById('empresa-telefono')) document.getElementById('empresa-telefono').value = emp.telefono || '';
+                if (document.getElementById('empresa-email')) document.getElementById('empresa-email').value = emp.email || '';
+                if (document.getElementById('empresa-direccion')) document.getElementById('empresa-direccion').value = emp.direccion || '';
+            }
+            if (d.horarios) {
+                let hor = typeof d.horarios === 'string' ? JSON.parse(d.horarios) : d.horarios;
+                if (document.getElementById('horario-lv')) document.getElementById('horario-lv').value = hor.lunesViernes || '';
+                if (document.getElementById('horario-sab')) document.getElementById('horario-sab').value = hor.sabados || '';
+                if (document.getElementById('horario-dom')) document.getElementById('horario-dom').value = hor.domingos || '';
+            }
+            if (d.redes) {
+                let red = typeof d.redes === 'string' ? JSON.parse(d.redes) : d.redes;
+                if (document.getElementById('red-instagram')) document.getElementById('red-instagram').value = red.instagram || '';
+                if (document.getElementById('red-facebook')) document.getElementById('red-facebook').value = red.facebook || '';
+                if (document.getElementById('red-tiktok')) document.getElementById('red-tiktok').value = red.tiktok || '';
+                if (document.getElementById('red-whatsapp')) document.getElementById('red-whatsapp').value = red.whatsapp || '';
+            }
+            if (d.pagos) {
+                let pag = typeof d.pagos === 'string' ? JSON.parse(d.pagos) : d.pagos;
+                if (document.getElementById('pago-alias')) document.getElementById('pago-alias').value = pag.alias || '';
+                if (document.getElementById('pago-cbu')) document.getElementById('pago-cbu').value = pag.cbu || '';
+                if (document.getElementById('pago-banco')) document.getElementById('pago-banco').value = pag.banco || '';
+                if (document.getElementById('pago-titular')) document.getElementById('pago-titular').value = pag.titular || '';
+            }
+            if (d.diseno) {
+                let dis = typeof d.diseno === 'string' ? JSON.parse(d.diseno) : d.diseno;
+                if (document.getElementById('tienda-color-primary')) document.getElementById('tienda-color-primary').value = dis.colorPrimario || '#1a1a1a';
+                if (document.getElementById('tienda-color-secondary')) document.getElementById('tienda-color-secondary').value = dis.colorSecundario || '#c9a96e';
+                if (document.getElementById('tienda-color-bg')) document.getElementById('tienda-color-bg').value = dis.colorFondo || '#fafafa';
+                if (document.getElementById('tienda-color-text')) document.getElementById('tienda-color-text').value = dis.colorTexto || '#1a1a1a';
+            }
+            if (d.tienda) {
+                let tnd = typeof d.tienda === 'string' ? JSON.parse(d.tienda) : d.tienda;
+                if (document.getElementById('tienda-titulo')) document.getElementById('tienda-titulo').value = tnd.titulo || '';
+                if (document.getElementById('tienda-mensaje')) document.getElementById('tienda-mensaje').value = tnd.mensajeBienvenida || '';
+                setTiendaHabilitada(tnd.habilitada !== false);
+            }
+            if (d.mayorista) {
+                let may = typeof d.mayorista === 'string' ? JSON.parse(d.mayorista) : d.mayorista;
+                mayoristaHabilitado = may.habilitado || false;
+                mayoristaModo = may.modo || 'cantidad';
+                if (document.getElementById('mayoristaCantidad')) document.getElementById('mayoristaCantidad').value = may.valorCantidad || 3;
+                if (document.getElementById('mayoristaMonto')) document.getElementById('mayoristaMonto').value = formatearNumero(may.valorMonto || 80000);
+                selectMayoristaModo(mayoristaModo);
+                
+                const pnl = document.getElementById('mayoristaPanel');
+                const btn = document.getElementById('btnMayoristaToggle');
+                if (!mayoristaHabilitado) {
+                    if (pnl) pnl.style.display = 'none';
+                    if (btn) { btn.innerHTML = '<i class="fas fa-toggle-off"></i> Desactivado'; btn.style.background = '#64748b'; }
+                } else {
+                    if (pnl) pnl.style.display = 'block';
+                    if (btn) { btn.innerHTML = '<i class="fas fa-toggle-on"></i> Activado'; btn.style.background = '#10b981'; }
+                }
+            }
+            if (window.metodosEnvio && document.getElementById('metodos-envio-lista')) {
+                document.getElementById('metodos-envio-lista').value = window.metodosEnvio.join('\n');
+            }
         }
     }, 50);
     
     return html;
 }
-
+    
 function renderPaginaBackup() { return `<div class="panel"><div class="backup-hero"><div class="backup-hero-icon">💾</div><h2>Sistema de Backup Total</h2><p>Protegé absolutamente todos tus datos.</p><button onclick="iniciarBackupTotal()" class="btn-backup-master" id="btn-backup-total"><i class="fas fa-shield-alt"></i> Crear Backup Completo</button></div><div class="backup-cards"><div class="backup-card-item" onclick="iniciarBackupTotal()"><div class="backup-card-icon" style="background:#eef2ff;color:#6366f1"><i class="fas fa-database"></i></div><h4>Backup Completo</h4><p>Incluye absolutamente todo.</p></div><div class="backup-card-item" onclick="document.getElementById('restore-section').scrollIntoView({behavior:'smooth'})"><div class="backup-card-icon" style="background:#fef3c7;color:#f59e0b"><i class="fas fa-undo-alt"></i></div><h4>Restaurar Sistema</h4><p>Restaurá todo desde un archivo.</p></div></div><div class="config-section"><h3><i class="fas fa-history"></i> Historial <button onclick="cargarHistorialBackups()" class="tab-btn" style="float:right"><i class="fas fa-sync-alt"></i></button></h3><table class="history-table"><thead><tr><th>Fecha</th><th>Tamaño</th><th>Acciones</th></tr></thead><tbody id="backup-history-body"><tr><td colspan="3" style="text-align:center">Cargando...</td></tr></tbody></table></div><div class="config-section" style="border:2px solid #f59e0b" id="restore-section"><h3 style="color:#f59e0b"><i class="fas fa-upload"></i> Restaurar</h3><div class="restore-zone" onclick="document.getElementById('restore-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="manejarDropRestore(event)"><i class="fas fa-cloud-upload-alt" style="font-size:48px;color:#f59e0b"></i><h4>Arrastrá el backup aquí</h4></div><input type="file" id="restore-file-input" accept=".backup,.zip" style="display:none" onchange="procesarArchivoRestore(this)"><button onclick="confirmarRestauracionTotal()" class="btn-backup-master" style="width:100%;background:#f59e0b;margin-top:16px;display:none" id="btn-restaurar"><i class="fas fa-exclamation-triangle"></i> Restaurar</button></div></div>`; }
 
 async function cargar() { try { const d=await safeFetch('/listar',{method:'POST'}); productos=d.lista||[]; renderProductosVenta(); actualizarEstadisticasRapidas(); } catch(e){} }
