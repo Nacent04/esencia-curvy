@@ -962,8 +962,16 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
                 timestamp BIGINT
             )
         `);
+        
+        // CANDADO: Verificar si hay una caja abierta actualmente
+        const cajaAbierta = (await pool.query("SELECT * FROM caja_profesional WHERE estado = 'abierta'")).rows[0];
+        if (!cajaAbierta) {
+            return res.status(400).json({ error: '🔒 Operación denegada: Debe abrir la caja obligatoriamente antes de registrar un gasto.' });
+        }
+
         const { tipo, nombre, monto } = req.body;
         const hoy = new Date().toLocaleDateString('es-AR');
+        
         await pool.query(`
             INSERT INTO gastos (fecha, tipo, nombre, monto, usuario, timestamp)
             VALUES ($1, $2, $3, $4, $5, $6)
