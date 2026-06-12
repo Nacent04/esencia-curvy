@@ -1504,6 +1504,126 @@ function renderNotificaciones(){document.getElementById('notif-list').innerHTML=
 async function leerNotif(id){await safeFetch('/notificaciones/leer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});cargarNotificaciones();}
 async function marcarTodasLeidas(){await safeFetch('/notificaciones/leer-todas',{method:'POST'});cargarNotificaciones();}
 async function cargarLogs(){const filtro=document.getElementById('logs-filtro')?.value||'';try{const d=await safeFetch('/logs/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filtro})});const t=document.getElementById('logs-body');if(t&&d.lista)t.innerHTML=d.lista.map(l=>`<tr><td>${l.fechaLocal||l.fecha}</td><td>${l.admin||'Sistema'}</td><td>${l.accion}</td><td>${l.detalles||''}</td></tr>`).join('');}catch(e){}}
+
+// ====== FUNCIÓN PARA TRAER Y MOSTRAR EL HISTORIAL DEL CLIENTE ======
+async function verHistorialClienteCompleto(clienteId, nombreCliente) {
+    try {
+        const response = await fetch('/admin/historial-cliente', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            body: JSON.stringify({ id: clienteId })
+        });
+
+        const res = await response.json();
+        if (!res.success) {
+            alert(res.error || 'Error al obtener el historial');
+            return;
+        }
+
+        // Armamos el reporte visual de compras para mostrar en pantalla
+        let historialHtml = `<div style="padding: 10px; font-family: 'Poppins', sans-serif;">
+            <h4 style="font-family: 'Playfair Display', serif; color: #4A3728; margin-bottom: 4px; font-size: 20px;">Historial de Compras</h4>
+            <p style="font-size: 13px; color: #8B7355; margin-bottom: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👤 ${nombreCliente}</p>
+            <div style="border-bottom: 2px dashed #E0A899; margin-bottom: 16px;"></div>`;
+
+        // Procesamos los pedidos realizados en la tienda online
+        historialHtml += `<h5 style="color: #D4A373; font-weight: 700; margin-top: 14px; margin-bottom: 8px;"><i class="fas fa-shopping-bag"></i> Pedidos en Tienda Web (${res.pedidos.length})</h5>`;
+        if (res.pedidos.length === 0) {
+            historialHtml += `<p style="font-size: 13px; color: #8B7355; font-style: italic; margin-bottom: 12px;">No registra pedidos web.</p>`;
+        } else {
+            res.pedidos.forEach(p => {
+                historialHtml += `<div style="background: #FEFAE0; padding: 12px; border-radius: 14px; margin-bottom: 8px; border: 1px solid rgba(212,163,115,0.2); font-size: 13px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                        <strong>${p.id}</strong>
+                        <span style="font-family:'Courier New', monospace; font-weight:700;">$${p.total}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items: center; font-size: 11px; margin-top: 6px;">
+                        <span style="color: #8B7355;">${p.fecha}</span>
+                        <span style="background: #4A3728; color: white; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; font-weight:700; font-size:9px; letter-spacing:0.5px;">${p.estado}</span>
+                    </div>
+                </div>`;
+            });
+        }
+
+        // Procesamos las facturas emitidas manualmente por mostrador en el local
+        historialHtml += `<h5 style="color: #D4A373; font-weight: 700; margin-top: 20px; margin-bottom: 8px;"><i class="fas fa-cash-register"></i> Compras por Mostrador Local (${res.ventas.length})</h5>`;
+        if (res.ventas.length === 0) {
+            historialHtml += `<p style="font-size: 13px; color: #8B7355; font-style: italic;">No registra compras presenciales.</p>`;
+        } else {
+            res.ventas.forEach(v => {
+                historialHtml += `<div style="background: #ffffff; padding: 12px; border-radius: 14px; margin-bottom: 8px; border: 1px solid #eee; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.01);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+                        <strong>${v.id}</strong>
+                        <span style="font-family:'Courier New', monospace; font-weight:700;">$${v.total}</span>
+                    </div>
+                    <div style="font-size: 11px; color: #8B7355; margin-top: 6px; display:flex; justify-content:space-between;">
+                        <span>${v.fecha}</span>
+                        <span>Medio: <strong>${v.metodoPago || v.metodopago || 'Efectivo'}</strong></span>
+                    </div>
+                </div>`;
+            });
+        }
+        historialHtml += `</div>`;
+
+        abrirModalHistorialDinamico(historialHtml); 
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión con el servidor');
+    }
+}
+
+// ====== FUNCIÓN PARA ELIMINAR EL CLIENTE DE FORMA DEFINITIVA ======
+async function eliminarCliente(clienteId, nombreCliente) {
+    const seguro = confirm(`⚠️ ¿Estás completamente seguro de que querés eliminar a "${nombreCliente}"?\nEsta acción no se puede deshacer y borrará permanentemente la cuenta del usuario.`);
+    if (!seguro) return;
+
+    try {
+        const response = await fetch('/admin/eliminar-cliente', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            body: JSON.stringify({ id: clienteId })
+        });
+
+        const res = await response.json();
+        if (res.success) {
+            alert('✨ Cliente eliminado con éxito de la base de datos.');
+            // Ejecutamos dinámicamente la recarga según el nombre de tu función de renderizado
+            if (typeof cargarClientes === 'function') cargarClientes();
+            else if (typeof listarClientes === 'function') listarClientes();
+            else window.location.reload();
+        } else {
+            alert(res.error || 'No se pudo eliminar al cliente');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al intentar dar de baja al usuario');
+    }
+}
+
+// Función para inyectar y abrir la ventana flotante con diseño limpio
+function abrirModalHistorialDinamico(contenidoHtml) {
+    let modalExistente = document.getElementById('modal-historial-dinamico');
+    if (modalExistente) modalExistente.remove();
+
+    const m = document.createElement('div');
+    m.id = 'modal-historial-dinamico';
+    m.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(74,55,40,0.4); backdrop-filter:blur(6px); z-index:9999; display:flex; justify-content:center; align-items:center; padding:16px;';
+    m.innerHTML = `
+        <div style="background:white; border-radius:24px; max-width:480px; width:100%; max-height:80vh; overflow-y:auto; padding:24px; box-shadow: 0 20px 50px rgba(74,55,40,0.15); border: 1px solid #FAEDCD; position:relative;">
+            <button onclick="document.getElementById('modal-historial-dinamico').remove()" style="position:absolute; top:16px; right:16px; background:#FEFAE0; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer; color:#8B7355; font-weight:bold; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" onmouseover="this.style.background='#FAEDCD'" onmouseout="this.style.background='#FEFAE0'">✕</button>
+            ${contenidoHtml}
+        </div>
+    `;
+    document.body.appendChild(m);
+}
+
 function cargarCarritoGuardado(){let g=localStorage.getItem('pos_carrito');if(g){try{carrito=JSON.parse(g);calcularPreciosMayoristaEnVivo();renderCart();}catch(e){carrito=[];}}}
 function actualizarEstadisticasRapidas(){verEstadoCaja();}
 
