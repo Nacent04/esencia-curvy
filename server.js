@@ -890,6 +890,56 @@ app.post('/admin/buscar-clientes', adminMiddleware(), async (req, res) => {
     res.json({ lista: clientes });
 });
 
+// ENDPOINT PARA ELIMINAR CLIENTE
+app.post('/admin/eliminar-cliente', adminMiddleware('clientes'), async (req, res) => {
+    try {
+        const { id } = req.body;
+        if (!id) return res.status(400).json({ error: 'ID de cliente requerido' });
+
+        // Buscamos el email antes de borrarlo para dejar registro en los logs
+        const cliente = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
+        if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+        
+        await logActividad(req.admin.nombre, 'ELIMINAR_CLIENTE', `Borró al cliente: ${cliente.email}`, req);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('❌ Error al eliminar cliente:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ENDPOINT PARA VER EL HISTORIAL DE COMPRAS Y PEDIDOS DEL CLIENTE
+app.post('/admin/historial-cliente', adminMiddleware('clientes'), async (req, res) => {
+    try {
+        const { id } = req.body;
+        if (!id) return res.status(400).json({ error: 'ID de cliente requerido' });
+
+        // 1. Traemos los pedidos web que hizo este usuario desde la tienda
+        const pedidos = (await pool.query('SELECT * FROM pedidos WHERE "usuarioId" = $1 ORDER BY "fechaTimestamp" DESC', [id])).rows;
+        
+        // 2. Traemos las ventas de mostrador donde su email coincida adentro del campo JSON 'cliente'
+        const clienteData = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
+        let ventas = [];
+        
+        if (clienteData?.email) {
+            const ventasQuery = await pool.query('SELECT * FROM ventas WHERE cliente::text ILIKE $1 ORDER BY "fechaTimestamp" DESC', [`%${clienteData.email}%`]);
+            ventas = ventasQuery.rows;
+        }
+
+        // Formateamos los datos para que el panel de administración los renderice perfectamente
+        res.json({
+            success: true,
+            pedidos: pedidos.map(p => ({ ...p, items: JSON.parse(p.items || '[]'), cliente: JSON.parse(p.cliente || '{}') })),
+            ventas: ventas.map(v => ({ ...v, items: JSON.parse(v.items || '[]'), cliente: JSON.parse(v.cliente || '{}') }))
+        });
+    } catch (e) {
+        console.error('❌ Error al traer historial del cliente:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/admin/listar-costos', adminMiddleware('ventas'), async (req, res) => {
     try {
         const costos = (await pool.query('SELECT * FROM costos_producto')).rows;
