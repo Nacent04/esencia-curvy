@@ -998,12 +998,12 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
     }
 });
 
-// ENDPOINT DE CIERRE CORREGIDO (FILTRO POR TIMESTAMP MULTI-FORMATO)
+// ENDPOINT DE CIERRE CORREGIDO (FILTRO POR FECHA)
 app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req, res) => {
     try {
         const { efectivoEntregado } = req.body;
         
-        // Buscamos la caja actualmente abierta de forma directa por su estado (evita errores de formato de fecha)
+        // Buscamos la caja actualmente abierta de forma directa por su estado
         const caja = (await pool.query("SELECT * FROM caja_profesional WHERE estado = 'abierta'")).rows[0];
         if (!caja) return res.status(400).json({ error: 'No hay ninguna caja abierta en el sistema' });
         
@@ -1014,14 +1014,14 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
 
         const montoInicialEfectivo = parseFloat(caja.montoInicialEfectivo || caja.montoinicialefectivo || 0);
         const aperturaTimestamp = caja.aperturaTimestamp || caja.aperturatimestamp;
-        const hoyCajaStr = caja.fecha; // Guardamos el string exacto con el que se abrió
+        const hoyCajaStr = caja.fecha; // El string exacto de fecha guardado (ej: "12/6/2026")
 
         // Calculamos el inicio y fin del día de hoy en milisegundos para traer las ventas reales
         const ahora = new Date();
         const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
         const finHoy = inicioHoy + 24 * 60 * 60 * 1000 - 1;
 
-        // Consultamos las ventas usando el rango numérico de tiempo (es 100% preciso)
+        // Consultamos las ventas usando el rango numérico de tiempo
         const ventasAdmin = (await pool.query('SELECT * FROM ventas WHERE "fechaTimestamp" >= $1 AND "fechaTimestamp" <= $2', [inicioHoy, finHoy])).rows;
         
         let ventasEfectivo = 0, ventasTransferencia = 0;
@@ -1032,7 +1032,7 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             }
         });
 
-        // Formatos alternativos de fecha string para asegurar la compatibilidad con pedidos web de la tienda
+        // Formatos alternativos de fecha string para asegurar la compatibilidad con pedidos web
         const d = ahora.getDate();
         const m = ahora.getMonth() + 1;
         const y = ahora.getFullYear();
@@ -1066,21 +1066,21 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             }
         });
 
-        // Fórmulas matemáticas de balance requeridas
+        // Fórmulas matemáticas de balance requeradas
         const totalEsperadoEfectivo = montoInicialEfectivo + ventasEfectivo - totalGastosEfectivo;
         const diferenciaEfectivo = totalEsperadoEfectivo - (efectivoEntregado || 0);
         const totalEsperadoTransferencia = ventasTransferencia + ventasWebTransferencia - totalGastosTransferencia;
 
         const accionLog = abiertaPor !== req.admin.nombre ? 'CIERRE_FORZADO_CAJA' : 'CIERRE_CAJA';
 
-        // Actualizamos el registro de la caja usando su ID único
+        // CORRECCIÓN: Filtramos usando la columna 'fecha' y asegurando que esté 'abierta'
         await pool.query(`UPDATE caja_profesional SET estado='cerrada', "cerradaPor"=$1, "cierreTimestamp"=$2,
             "efectivoEntregado"=$3, "ventasEfectivo"=$4, "ventasTransferencia"=$5,
             "ventasWebTransferencia"=$6, "totalEsperadoEfectivo"=$7, "totalEsperadoTransferencia"=$8,
-            "diferenciaEfectivo"=$9, "cantidadVentas"=$10 WHERE id=$11`,
+            "diferenciaEfectivo"=$9, "cantidadVentas"=$10 WHERE fecha=$11 AND estado='abierta'`,
             [req.admin.nombre, Date.now(), efectivoEntregado||0, ventasEfectivo, ventasTransferencia,
              ventasWebTransferencia, totalEsperadoEfectivo, totalEsperadoTransferencia, diferenciaEfectivo,
-             ventasAdmin.length, caja.id]);
+             ventasAdmin.length, hoyCajaStr]);
              
         await logActividad(req.admin.nombre, accionLog, `Dif Ef: ${fmt.format(diferenciaEfectivo)}`, req);
         
