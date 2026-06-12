@@ -573,15 +573,22 @@ async function guardarGastoVentas() {
     }
     
     try {
-        await safeFetch('/admin/agregar-gasto', {
+        const respuesta = await safeFetch('/admin/agregar-gasto', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tipo, nombre, monto })
         });
+        
+        // Si el servidor devuelve un error controlado (como el de la caja cerrada)
+        if (respuesta.error) {
+            mostrarToast(respuesta.error, true);
+            return;
+        }
+        
         mostrarToast('💸 Gasto guardado con éxito');
         document.getElementById('modal-gasto-container').remove();
     } catch(e) {
-        mostrarToast('Error: ' + e.message, true);
+        mostrarToast(e.message || 'Error al guardar el gasto', true);
     }
 }
 
