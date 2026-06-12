@@ -975,25 +975,32 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
     }
 });
 
+// ENDPOINT DE CIERRE CORREGIDO (FILTRO POR TIMESTAMP MULTI-FORMATO)
 app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req, res) => {
     try {
         const { efectivoEntregado } = req.body;
-        const hoy = new Date().toLocaleDateString('es-AR');
         
-        const caja = (await pool.query("SELECT * FROM caja_profesional WHERE fecha = $1 AND estado = 'abierta'", [hoy])).rows[0];
-        if (!caja) return res.status(400).json({ error: 'No hay caja abierta hoy' });
+        // Buscamos la caja actualmente abierta de forma directa por su estado (evita errores de formato de fecha)
+        const caja = (await pool.query("SELECT * FROM caja_profesional WHERE estado = 'abierta'")).rows[0];
+        if (!caja) return res.status(400).json({ error: 'No hay ninguna caja abierta en el sistema' });
         
         const abiertaPor = caja.abiertaPor || caja.abiertapor;
         if (abiertaPor !== req.admin.nombre && req.admin.rol !== 'admin') {
             return res.status(403).json({ error: `Esta caja fue abierta por ${abiertaPor}. Solo ese usuario o un Administrador pueden cerrarla.` });
         }
 
-        // Corrección de mayúsculas/minúsculas para el Monto Inicial de la Base de Datos
         const montoInicialEfectivo = parseFloat(caja.montoInicialEfectivo || caja.montoinicialefectivo || 0);
         const aperturaTimestamp = caja.aperturaTimestamp || caja.aperturatimestamp;
+        const hoyCajaStr = caja.fecha; // Guardamos el string exacto con el que se abrió
 
-        // Ventas del panel de administración del día actual
-        const ventasAdmin = (await pool.query("SELECT * FROM ventas WHERE fecha LIKE $1", [`%${hoy}%`])).rows;
+        // Calculamos el inicio y fin del día de hoy en milisegundos para traer las ventas reales
+        const ahora = new Date();
+        const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+        const finHoy = inicioHoy + 24 * 60 * 60 * 1000 - 1;
+
+        // Consultamos las ventas usando el rango numérico de tiempo (es 100% preciso)
+        const ventasAdmin = (await pool.query('SELECT * FROM ventas WHERE "fechaTimestamp" >= $1 AND "fechaTimestamp" <= $2', [inicioHoy, finHoy])).rows;
+        
         let ventasEfectivo = 0, ventasTransferencia = 0;
         ventasAdmin.forEach(v => {
             if (v.origen === 'admin') {
@@ -1002,13 +1009,23 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             }
         });
 
+        // Formatos alternativos de fecha string para asegurar la compatibilidad con pedidos web de la tienda
+        const d = ahora.getDate();
+        const m = ahora.getMonth() + 1;
+        const y = ahora.getFullYear();
+        const f1 = `${d}/${m}/${y}`;
+        const f2 = `${d.toString().padStart(2,'0')}/${m.toString().padStart(2,'0')}/${y}`;
+
         // Pedidos de la tienda web que pasaron a estar confirmados como 'abonado' hoy
-        const pedidosWebQuery = await pool.query("SELECT COALESCE(SUM(total),0) as total FROM pedidos WHERE estado = 'abonado' AND fecha LIKE $1", [`%${hoy}%`]);
+        const pedidosWebQuery = await pool.query(
+            "SELECT COALESCE(SUM(total),0) as total FROM pedidos WHERE estado = 'abonado' AND (fecha LIKE $1 OR fecha LIKE $2)", 
+            [`%${f1}%`, `%${f2}%`]
+        );
         const ventasWebTransferencia = parseFloat(pedidosWebQuery.rows[0].total || 0);
 
-        // Procesar Gastos del día
+        // Procesar Gastos del día actual
         await pool.query(`CREATE TABLE IF NOT EXISTS gastos (id SERIAL PRIMARY KEY, fecha TEXT, tipo TEXT, nombre TEXT, monto NUMERIC, usuario TEXT, timestamp BIGINT)`);
-        const gastosRows = (await pool.query("SELECT * FROM gastos WHERE fecha = $1", [hoy])).rows;
+        const gastosRows = (await pool.query("SELECT * FROM gastos WHERE fecha = $1 OR fecha = $2", [f1, f2])).rows;
         
         let listaGastosEfectivo = [];
         let listaGastosTransferencia = [];
@@ -1016,30 +1033,31 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
         let totalGastosTransferencia = 0;
 
         gastosRows.forEach(g => {
-            const m = parseFloat(g.monto || 0);
+            const montoGasto = parseFloat(g.monto || 0);
             if (g.tipo === 'efectivo') {
-                totalGastosEfectivo += m;
-                listaGastosEfectivo.push({ nombre: g.nombre, monto: m });
+                totalGastosEfectivo += montoGasto;
+                listaGastosEfectivo.push({ nombre: g.nombre, monto: montoGasto });
             } else if (g.tipo === 'transferencia') {
-                totalGastosTransferencia += m;
-                listaGastosTransferencia.push({ nombre: g.nombre, monto: m });
+                totalGastosTransferencia += montoGasto;
+                listaGastosTransferencia.push({ nombre: g.nombre, monto: montoGasto });
             }
         });
 
-        // Cálculos exactos según reglas del ticket
+        // Fórmulas matemáticas de balance requeridas
         const totalEsperadoEfectivo = montoInicialEfectivo + ventasEfectivo - totalGastosEfectivo;
         const diferenciaEfectivo = totalEsperadoEfectivo - (efectivoEntregado || 0);
         const totalEsperadoTransferencia = ventasTransferencia + ventasWebTransferencia - totalGastosTransferencia;
 
         const accionLog = abiertaPor !== req.admin.nombre ? 'CIERRE_FORZADO_CAJA' : 'CIERRE_CAJA';
 
+        // Actualizamos el registro de la caja usando su ID único
         await pool.query(`UPDATE caja_profesional SET estado='cerrada', "cerradaPor"=$1, "cierreTimestamp"=$2,
             "efectivoEntregado"=$3, "ventasEfectivo"=$4, "ventasTransferencia"=$5,
             "ventasWebTransferencia"=$6, "totalEsperadoEfectivo"=$7, "totalEsperadoTransferencia"=$8,
-            "diferenciaEfectivo"=$9, "cantidadVentas"=$10 WHERE fecha=$11 AND estado='abierta'`,
+            "diferenciaEfectivo"=$9, "cantidadVentas"=$10 WHERE id=$11`,
             [req.admin.nombre, Date.now(), efectivoEntregado||0, ventasEfectivo, ventasTransferencia,
              ventasWebTransferencia, totalEsperadoEfectivo, totalEsperadoTransferencia, diferenciaEfectivo,
-             ventasAdmin.length, hoy]);
+             ventasAdmin.length, caja.id]);
              
         await logActividad(req.admin.nombre, accionLog, `Dif Ef: ${fmt.format(diferenciaEfectivo)}`, req);
         
@@ -1064,6 +1082,7 @@ app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req
             } 
         });
     } catch(e) { 
+        console.error("❌ Error en cierre de caja:", e.message);
         res.status(500).json({ error: e.message }); 
     }
 });
