@@ -772,23 +772,56 @@ app.post('/dashboard/stats', async (req, res) => {
 });
 
 app.post('/admin/estadisticas-avanzadas', adminMiddleware('dashboard'), async (req, res) => {
-    const mes = new Date().toLocaleDateString('es-AR').substring(3);
-    const ventasMes = (await pool.query("SELECT * FROM ventas WHERE fecha LIKE $1", [`%${mes}%`])).rows;
-    let efAdmin = 0, trAdmin = 0, efWeb = 0, trWeb = 0;
-    ventasMes.forEach(v => {
-        if (v.origen === 'admin') {
-            if (v["metodoPago"] === 'efectivo') efAdmin += v.total;
-            if (v["metodoPago"] === 'transferencia') trAdmin += v.total;
-        }
-        if (v.origen === 'tienda') trWeb += v.total;
-    });
-    res.json({
-        ventasHoy: 0, ventasMes: 0, totalClientes: (await pool.query('SELECT COUNT(*) as c FROM usuarios')).rows[0].c,
-        totalProductos: (await pool.query('SELECT COUNT(*) as c FROM productos')).rows[0].c,
-        pedidosPendientes: (await pool.query("SELECT COUNT(*) as c FROM pedidos WHERE estado IN ('pendiente','confirmado','abonado')")).rows[0].c,
-        productosAgotados: 0,
-        rendimientoMensual: { efAdmin, trAdmin, efWeb, trWeb, total: efAdmin+trAdmin+efWeb+trWeb }
-    });
+    try {
+        const hoy = new Date().toLocaleDateString('es-AR');
+        const mes = new Date().toLocaleDateString('es-AR').substring(3);
+        
+        // Calcular total de ventas de hoy
+        const ventasHoyQuery = await pool.query("SELECT COALESCE(SUM(total),0) as total FROM ventas WHERE fecha LIKE $1", [`%${hoy}%`]);
+        const ventasHoy = parseFloat(ventasHoyQuery.rows[0].total);
+
+        // Calcular total de ventas del mes y segmentación de métodos de pago
+        const ventasMesQuery = await pool.query("SELECT * FROM ventas WHERE fecha LIKE $1", [`%${mes}%`]);
+        const ventasMesRows = ventasMesQuery.rows;
+        
+        let ventasMes = 0;
+        let efAdmin = 0, trAdmin = 0, efWeb = 0, trWeb = 0;
+        
+        ventasMesRows.forEach(v => {
+            ventasMes += v.total || 0;
+            if (v.origen === 'admin') {
+                if (v.metodoPago === 'efectivo') efAdmin += v.total;
+                if (v.metodoPago === 'transferencia') trAdmin += v.total;
+            }
+            if (v.origen === 'tienda') trWeb += v.total;
+        });
+
+        const totalClientes = (await pool.query('SELECT COUNT(*) as c FROM usuarios')).rows[0].c;
+        const totalProductos = (await pool.query('SELECT COUNT(*) as c FROM productos')).rows[0].c;
+        const pedidosPendientes = (await pool.query("SELECT COUNT(*) as c FROM pedidos WHERE estado IN ('pendiente','confirmado','abonado')")).rows[0].c;
+        
+        // Calcular productos agotados reales
+        const prodAgotadosQuery = await pool.query(`
+            SELECT COUNT(*) as c FROM productos p 
+            WHERE NOT EXISTS (
+                SELECT 1 FROM variantes v WHERE v."productoId" = p.id AND v.stock > 0
+            )
+        `);
+        const productosAgotados = parseInt(prodAgotadosQuery.rows[0].c || 0);
+
+        res.json({
+            ventasHoy,
+            ventasMes,
+            totalClientes,
+            totalProductos,
+            pedidosPendientes,
+            productosAgotados,
+            rendimientoMensual: { efAdmin, trAdmin, efWeb, trWeb, total: efAdmin + trAdmin + efWeb + trWeb }
+        });
+    } catch (e) {
+        console.error('❌ Error en estadisticas-avanzadas:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/admin/listar-clientes', adminMiddleware('clientes'), async (req, res) => {
@@ -971,37 +1004,52 @@ app.post('/admin/dashboard/data', adminMiddleware('dashboard'), async (req, res)
         const ventasPorDia = [0, 0, 0, 0, 0, 0, 0];
         const efectivoPorDia = [0, 0, 0, 0, 0, 0, 0];
         const transferenciaPorDia = [0, 0, 0, 0, 0, 0, 0];
+        
         ventasQuery.rows.forEach(v => {
-            const fecha = new Date(v.fechaTimestamp);
-            const dia = fecha.getDay();
-            ventasPorDia[dia] += v.total || 0;
-            if (v.metodoPago === 'efectivo') efectivoPorDia[dia] += v.total || 0;
-            if (v.metodoPago === 'transferencia') transferenciaPorDia[dia] += v.total || 0;
+            const ts = Number(v.fechaTimestamp);
+            if (!isNaN(ts)) {
+                const fecha = new Date(ts);
+                const dia = fecha.getDay();
+                ventasPorDia[dia] += v.total || 0;
+                if (v.metodoPago === 'efectivo') efectivoPorDia[dia] += v.total || 0;
+                if (v.metodoPago === 'transferencia') transferenciaPorDia[dia] += v.total || 0;
+            }
         });
+        
         const productosCount = {};
         ventasQuery.rows.forEach(v => {
             const items = typeof v.items === 'string' ? JSON.parse(v.items) : (v.items || []);
             items.forEach(i => { const key = i.pNom || 'Desconocido'; productosCount[key] = (productosCount[key] || 0) + (i.cant || 1); });
         });
         const productosTop = Object.entries(productosCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        
         const categoriasCount = {};
         const productos = await pool.query('SELECT id, nombre, "categoriaId" FROM productos');
         const categorias = await pool.query('SELECT id, nombre FROM categorias');
+        
         ventasQuery.rows.forEach(v => {
             const items = typeof v.items === 'string' ? JSON.parse(v.items) : (v.items || []);
             items.forEach(i => {
                 const prod = productos.rows.find(p => p.id == i.pId);
-                if (prod) { const cat = categorias.rows.find(c => c.id == prod.categoriaId); const catNombre = cat ? cat.nombre : 'Sin categoría'; categoriasCount[catNombre] = (categoriasCount[catNombre] || 0) + (i.precio * i.cant || 0); }
+                if (prod) { 
+                    const cat = categorias.rows.find(c => c.id == prod.categoriaId); 
+                    const catNombre = cat ? cat.nombre : 'Sin categoría'; 
+                    categoriasCount[catNombre] = (categoriasCount[catNombre] || 0) + (i.precio * i.cant || 0); 
+                }
             });
         });
         const categoriasTop = Object.entries(categoriasCount).sort((a, b) => b[1] - a[1]).slice(0, 7);
+        
         res.json({
             ventasDia: { labels: diasSemana, valores: ventasPorDia },
             productosTop: { labels: productosTop.length ? productosTop.map(p => p[0]) : ['Sin datos'], valores: productosTop.length ? productosTop.map(p => p[1]) : [0] },
             metodosPago: { labels: diasSemana, efectivo: efectivoPorDia, transferencia: transferenciaPorDia },
             categorias: { labels: categoriasTop.length ? categoriasTop.map(c => c[0]) : ['Sin datos'], valores: categoriasTop.length ? categoriasTop.map(c => c[1]) : [0] }
         });
-    } catch (error) { console.error('Error en dashboard data:', error); res.json({ ventasDia: { labels: ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], valores: [0,0,0,0,0,0,0] }, productosTop: { labels: ['Sin datos'], valores: [1] }, metodosPago: { labels: ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], efectivo: [0,0,0,0,0,0,0], transferencia: [0,0,0,0,0,0,0] }, categorias: { labels: ['Sin datos'], valores: [1] } }); }
+    } catch (error) { 
+        console.error('❌ Error en dashboard data:', error); 
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.post('/notificaciones', async (req, res) => { res.json({ lista: (await pool.query('SELECT * FROM notificaciones ORDER BY fecha DESC LIMIT 50')).rows }); });
