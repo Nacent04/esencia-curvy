@@ -252,7 +252,7 @@ body.dark-mode .backup-card-item{background:#2A1F18;border-color:#3D2B20}
         <button id="t-v" class="tab-btn active" data-permiso="ventas" onclick="tab('v')"><i class="fas fa-cash-register"></i> Ventas</button>
         <button id="t-r" class="tab-btn" data-permiso="ventas" onclick="tab('r')"><i class="fas fa-list"></i> Listado</button>
         <button id="t-a" class="tab-btn" data-permiso="stock" onclick="tab('a')"><i class="fas fa-boxes"></i> Stock</button>
-        <button id="t-dash" class="tab-btn" data-permiso="dashboard" onclick="tab('dash')"><i class="fas fa-chart-pie"></i> Dashboard</button>
+        <button id="t-dash" class="tab-btn" data-permiso="dashboard" onclick="tab('dash')"><i class="fas fa-chart-pie"></i> Estadísticas</button>
         <button id="t-c" class="tab-btn" data-permiso="config" onclick="tab('c')"><i class="fas fa-sliders-h"></i> Config</button>
         <button id="t-retiro" class="tab-btn btn-warning" data-permiso="ventas" onclick="tab('retiro')"><i class="fas fa-qrcode"></i> Retirar</button>
         <button id="t-p" class="tab-btn" data-permiso="pedidos" onclick="tab('p')"><i class="fas fa-shopping-cart"></i> Pedidos</button>
@@ -399,6 +399,7 @@ async function cargarConfiguracion() {
         console.error('❌ Error en cargarConfiguracion:', e);
     }
 }
+
 function tab(t) {
     if (adminActual && adminActual.rol !== 'admin') {
         const btn = document.querySelector(`[onclick="tab('${t}')"]`);
@@ -414,7 +415,7 @@ function tab(t) {
     if (t==='v') { container.className='layout-con-carrito'; container.innerHTML=renderPaginaVentas(); cartPanel.classList.remove('hidden'); setTimeout(()=>{cargar();cargarMetodosEnvio();cargarNotificaciones();},100); }
     else if (t==='r') { container.className='layout'; container.innerHTML=renderPaginaListadoVentas(); cartPanel.classList.add('hidden'); cargarVentas(); }
     else if (t==='a') { container.className='layout'; container.innerHTML=renderPaginaGestionStock(); cartPanel.classList.add('hidden'); cargarCategorias(); setTimeout(cargarYRenderAdmin,100); }
-    else if (t==='dash') { container.className='layout'; container.innerHTML=renderPaginaDashboard(); cartPanel.classList.add('hidden'); setTimeout(cargarDashboard,100); }
+    else if (t==='dash') { container.className='layout'; container.innerHTML=renderPaginaEstadisticas(); cartPanel.classList.add('hidden'); setTimeout(cargarDashboard,100); }
     else if (t==='c') { 
         container.className='layout'; 
         container.innerHTML=renderPaginaConfiguracion(); 
@@ -425,7 +426,7 @@ function tab(t) {
         }, 100); 
     }
     else if (t==='retiro') { container.className='layout'; container.innerHTML=renderPaginaRetiro(); cartPanel.classList.add('hidden'); }
-    else if (t==='p') { container.className='layout'; container.innerHTML=renderPaginaPedidosWeb(); cartPanel.classList.add('hidden'); cargarPedidosTienda(); }
+    else if (t==='p') { container.className='layout'; container.innerHTML=renderPaginaPedidosWeb(); cartPanel.className='layout'; container.innerHTML=renderPaginaPedidosWeb(); cartPanel.classList.add('hidden'); cargarPedidosTienda(); }
     else if (t==='perfiles') { container.className='layout'; container.innerHTML=renderPaginaPerfiles(); cartPanel.classList.add('hidden'); cargarPerfiles(); }
     else if (t==='logs') { container.className='layout'; container.innerHTML=renderPaginaLogs(); cartPanel.classList.add('hidden'); cargarLogs(); }
     else if (t==='clientes') { container.className='layout'; container.innerHTML=renderPaginaClientes(); cartPanel.classList.add('hidden'); cargarClientes(); }
@@ -449,7 +450,42 @@ function renderPaginaVentas() {
 }
 function renderPaginaListadoVentas() { return `<div class="panel"><h3 style="display:flex;justify-content:space-between"><span><i class="fas fa-history"></i> Historial</span><button onclick="exportarVentasCSV()" class="tab-btn btn-excel"><i class="fas fa-file-csv"></i> Exportar</button></h3><div class="ventas-buscador"><input type="text" id="ventas-buscador" placeholder="🔍 Buscar..." onkeyup="filtrarVentas()"></div><table style="width:100%"><thead><tr><th>Fecha/ID</th><th>Cliente</th><th>Items</th><th>Total</th><th></th></tr></thead><tbody id="lista-ventas-body"></tbody></table></div>`; }
 function renderPaginaGestionStock() { return `<div class="panel"><div style="display:flex;gap:12px;margin-bottom:24px"><button onclick="nuevoProd()" class="tab-btn"><i class="fas fa-plus"></i> Nuevo</button><button onclick="cargarYRenderAdmin()" class="tab-btn"><i class="fas fa-sync-alt"></i> Recargar</button><button onclick="verStockBajo()" class="tab-btn btn-warning"><i class="fas fa-exclamation-triangle"></i> Stock Bajo</button><button onclick="abrirModalCategorias()" class="tab-btn btn-info"><i class="fas fa-folder-tree"></i> Categorías</button></div><div id="admin-lista"></div></div>`; }
-function renderPaginaDashboard() { return `<div class="panel"><h3><i class="fas fa-chart-pie"></i> Panel de Control</h3><div id="estadisticas-avanzadas"></div><div class="charts-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;margin:20px 0"><div class="config-section"><h4><i class="fas fa-chart-bar"></i> Ventas por Día</h4><canvas id="chart-ventas-dia"></canvas></div><div class="config-section"><h4><i class="fas fa-chart-pie"></i> Productos Más Vendidos</h4><canvas id="chart-productos-top"></canvas></div><div class="config-section"><h4><i class="fas fa-chart-line"></i> Métodos de Pago</h4><canvas id="chart-metodos-pago"></canvas></div><div class="config-section"><h4><i class="fas fa-chart-doughnut"></i> Ventas por Categoría</h4><canvas id="chart-categorias"></canvas></div></div><div id="estadisticas-vendedor" class="config-section" style="margin-top:24px"><h4><i class="fas fa-users"></i> Rendimiento por Vendedor</h4></div><div class="config-section" style="margin-top:24px"><h4><i class="fas fa-history"></i> Historial de Cajas <input type="date" id="cajas-desde" style="width:140px;margin-left:12px" onchange="cargarHistorialCajas()"><input type="date" id="cajas-hasta" style="width:140px;margin-left:8px" onchange="cargarHistorialCajas()"></h4><div id="historial-cajas"></div></div></div>`; }
+
+function renderPaginaEstadisticas() { 
+    return `<div class="panel">
+        <h3 style="color: #4A3728; font-family: 'Playfair Display', serif; font-weight: 800;"><i class="fas fa-chart-pie" style="color: #E0A899;"></i> Estadísticas Generales</h3>
+        <div id="estadisticas-avanzadas"></div>
+        <div class="charts-container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;margin:20px 0">
+            <div class="config-section">
+                <h4><i class="fas fa-chart-bar"></i> Ventas por Día</h4>
+                <canvas id="chart-ventas-dia"></canvas>
+            </div>
+            <div class="config-section">
+                <h4><i class="fas fa-chart-pie"></i> Productos Más Vendidos</h4>
+                <canvas id="chart-productos-top"></canvas>
+            </div>
+            <div class="config-section">
+                <h4><i class="fas fa-chart-line"></i> Métodos de Pago</h4>
+                <canvas id="chart-metodos-pago"></canvas>
+            </div>
+            <div class="config-section">
+                <h4><i class="fas fa-chart-doughnut"></i> Ventas por Categoría</h4>
+                <canvas id="chart-categorias"></canvas>
+            </div>
+        </div>
+        <div id="estadisticas-vendedor" class="config-section" style="margin-top:24px">
+            <h4><i class="fas fa-users"></i> Rendimiento por Vendedor</h4>
+        </div>
+        <div class="config-section" style="margin-top:24px">
+            <h4><i class="fas fa-history"></i> Historial de Cajas 
+                <input type="date" id="cajas-desde" style="width:140px;margin-left:12px" onchange="cargarHistorialCajas()">
+                <input type="date" id="cajas-hasta" style="width:140px;margin-left:8px" onchange="cargarHistorialCajas()">
+            </h4>
+            <div id="historial-cajas"></div>
+        </div>
+    </div>`; 
+}
+    
 function renderPaginaRetiro() { return `<div class="panel"><h3><i class="fas fa-qrcode"></i> Retirar Pedido</h3><div style="max-width:400px;margin:0 auto;text-align:center"><input type="text" id="pin-retiro-input" maxlength="4" placeholder="0000" style="font-size:48px;text-align:center;letter-spacing:24px;width:200px;margin:20px auto;padding:16px"><button onclick="verificarPINRetiro()" class="btn-confirm">Verificar</button><div id="pin-retiro-resultado" style="margin-top:20px"></div></div></div>`; }
 function renderPaginaPedidosWeb() { return `<div class="panel"><h3><i class="fas fa-shopping-cart"></i> Pedidos Web</h3><div style="overflow-x:auto"><table style="width:100%"><thead><tr><th>Fecha/ID</th><th>Cliente</th><th>Items</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="lista-pedidos-body"></tbody></table></div></div>`; }
 function renderPaginaPerfiles() { return `<div class="panel"><h3 style="display:flex;justify-content:space-between"><span><i class="fas fa-users-cog"></i> Gestión de Perfiles</span><button onclick="abrirModalCrearPerfil()" class="tab-btn btn-success"><i class="fas fa-user-plus"></i> Nuevo Perfil</button></h3><div id="lista-perfiles"></div></div>`; }
