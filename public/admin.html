@@ -274,28 +274,88 @@ body.dark-mode .backup-card-item{background:#2A1F18;border-color:#3D2B20}
     @media(max-width:1024px) {
         #btn-minimize-cart { display: inline-flex !important; }
     }
+<style>
+    @media(max-width:1024px) {
+        #btn-minimize-cart { display: inline-flex !important; }
+    }
 </style>
+
 <div id="v-cart" class="panel hidden" style="position:fixed;right:24px;top:120px;width:480px;max-height:calc(100vh - 140px);overflow-y:auto;z-index:50">
     <h3 style="margin-top:0;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
         <span><i class="fas fa-shopping-cart"></i> Pedido Actual</span>
         <button onclick="toggleCartMobile()" class="tab-btn" style="padding:8px 14px; border-radius:50px; font-size:12px; display:none; align-items:center; gap:6px; background:#ef4444; color:white; border:none;" id="btn-minimize-cart"><i class="fas fa-compress-alt"></i> Minimizar</button>
     </h3>
     <div id="cart-items" style="max-height:320px;overflow-y:auto;margin-bottom:20px"></div>
+    
     <label style="font-weight:600;margin-bottom:8px;display:block"><i class="fas fa-truck"></i> Entrega</label>
-    <div class="entrega-tabs"><button id="l-local" class="entrega-btn active" onclick="setLog('local')"><i class="fas fa-store"></i> Retiro</button><button id="l-envio" class="entrega-btn" onclick="setLog('envio')"><i class="fas fa-shipping-fast"></i> Envío</button></div>
-    <div id="form-envio" class="hidden"><div class="form-envio-completo"><div class="form-row"><div><label class="form-label required">Nombre</label><input type="text" id="env-nombre"></div><div><label class="form-label required">DNI</label><input type="text" id="env-dni"></div></div><div class="form-row"><div><label class="form-label required">Teléfono</label><input type="tel" id="env-celular"></div><div><label>Email</label><input type="email" id="env-email"></div></div><div class="form-row"><div><label class="form-label required">CP</label><input type="text" id="env-cp"></div><div><label class="form-label required">Provincia</label><select id="env-provincia"><option value="">Seleccionar</option><option>Buenos Aires</option><option>CABA</option><option>Córdoba</option></select></div></div><div class="form-row"><div><label class="form-label required">Localidad</label><input type="text" id="env-localidad"></div><div><label class="form-label required">Domicilio</label><input type="text" id="env-domicilio"></div></div><div><label>Notas</label><textarea id="env-notas"></textarea></div></div></div>
+    <div class="entrega-tabs">
+        <button id="l-local" class="entrega-btn active" onclick="setLog('local')"><i class="fas fa-store"></i> Retiro</button>
+        <button id="l-envio" class="entrega-btn" onclick="setLog('envio')"><i class="fas fa-shipping-fast"></i> Envío</button>
+    </div>
+    
+    <div id="form-envio" class="hidden">
+        <div class="form-envio-completo">
+            <div class="form-row">
+                <div><label class="form-label required">Nombre</label><input type="text" id="env-nombre"></div>
+                <div><label class="form-label required">DNI</label><input type="text" id="env-dni"></div>
+            </div>
+            <div class="form-row">
+                <div><label class="form-label required">Teléfono</label><input type="tel" id="env-celular"></div>
+                <div><label>Email</label><input type="email" id="env-email"></div>
+            </div>
+            <div class="form-row">
+                <div><label class="form-label required">CP</label><input type="text" id="env-cp"></div>
+                <div>
+                    <label class="form-label required">Provincia</label>
+                    <select id="env-provincia">
+                        <option value="">Seleccionar</option>
+                        <option>Buenos Aires</option>
+                        <option>CABA</option>
+                        <option>Córdoba</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div><label class="form-label required">Localidad</label><input type="text" id="env-localidad"></div>
+                <div><label class="form-label required">Domicilio</label><input type="text" id="env-domicilio"></div>
+            </div>
+            <div><label>Notas</label><textarea id="env-notas"></textarea></div>
+        </div>
+    </div>
+    
     <label style="font-weight:600;margin:16px 0 8px;display:block"><i class="fas fa-credit-card"></i> Pago</label>
-    <div class="pago-tabs"><button id="p-ef" class="pago-btn active" onclick="setMetodo('efectivo')"><i class="fas fa-money-bill-wave"></i> Efectivo</button><button id="p-tr" class="pago-btn" onclick="setMetodo('transferencia')"><i class="fas fa-exchange-alt"></i> Transf.</button><button id="p-mx" class="pago-btn" onclick="setMetodo('mixto')"><i class="fas fa-hand-holding-usd"></i> Mixto</button></div>
-    <div class="total-container"><div>Total a pagar</div><div id="total-txt" class="total-amount">$0</div><button class="btn-confirm" onclick="checkout()"><i class="fas fa-check-circle"></i> CONFIRMAR VENTA</button></div>
+    <div class="pago-tabs">
+        <button id="p-ef" class="pago-btn active" onclick="setMetodo('efectivo')"><i class="fas fa-money-bill-wave"></i> Efectivo</button>
+        <button id="p-tr" class="pago-btn" onclick="setMetodo('transferencia')"><i class="fas fa-exchange-alt"></i> Transf.</button>
+        <button id="p-mx" class="pago-btn" onclick="setMetodo('mixto')"><i class="fas fa-hand-holding-usd"></i> Mixto</button>
+    </div>
+    
+    <div class="total-container">
+        <div>Total a pagar</div>
+        <div id="total-txt" class="total-amount">$0</div>
+        
+        <button onclick="abrirModalGasto()" style="width:100%; margin-bottom:10px; background:#E0A899; color:white; border:none; padding:10px; border-radius:50px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fas fa-hand-holding-usd"></i> Anotar Gasto Caja
+        </button>
+        
+        <button class="btn-confirm" onclick="checkout()"><i class="fas fa-check-circle"></i> CONFIRMAR VENTA</button>
+    </div>
 </div>
 
 <button id="btn-cart-float" class="hidden" onclick="toggleCartMobile()" style="position:fixed; bottom:20px; right:20px; width:60px; height:60px; border-radius:50%; background:linear-gradient(135deg,#D4A373,#E0A899); color:white; border:none; cursor:pointer; font-size:22px; box-shadow:0 4px 20px rgba(212,163,115,0.5); z-index:1002; display:flex; align-items:center; justify-content:center;">
     <i class="fas fa-shopping-cart"></i>
     <span id="cart-float-badge" style="position:absolute; top:-5px; right:-5px; background:#ef4444; color:white; border-radius:50%; width:22px; height:22px; font-size:11px; display:flex; align-items:center; justify-content:center; font-weight:700;">0</span>
 </button>
-    <div style="position:fixed;bottom:20px;left:20px;z-index:999">
-        <button onclick="toggleThemePanel()" style="width:50px;height:50px;border-radius:50%;background:#6366f1;color:white;border:none;cursor:pointer;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4)"><i class="fas fa-palette"></i></button>
-        <div id="theme-panel" style="display:none;position:absolute;bottom:60px;left:0;background:white;border-radius:20px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.15);width:300px"><h4 style="margin-bottom:12px"><i class="fas fa-palette"></i> Personalizar Tema</h4><div style="margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()"><span>🌙 Modo Oscuro</span></label></div></div>
+
+<div style="position:fixed;bottom:20px;left:20px;z-index:999">
+    <button onclick="toggleThemePanel()" style="width:50px;height:50px;border-radius:50%;background:#6366f1;color:white;border:none;cursor:pointer;font-size:20px;box-shadow:0 4px 20px rgba(99,102,241,0.4)"><i class="fas fa-palette"></i></button>
+    <div id="theme-panel" style="display:none;position:absolute;bottom:60px;left:0;background:white;border-radius:20px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.15);width:300px">
+        <h4 style="margin-bottom:12px"><i class="fas fa-palette"></i> Personalizar Tema</h4>
+        <div style="margin-bottom:12px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()"><span>🌙 Modo Oscuro</span>
+            </label>
+        </div>
     </div>
 </div>
 
@@ -463,6 +523,66 @@ function renderPaginaVentas() {
         </div>
         <div id="grid-prods" class="grid"></div>
     </div>`; 
+}
+
+function abrirModalGasto() {
+    const div = document.createElement('div');
+    div.id = 'modal-gasto-container';
+    div.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:inherit;';
+    div.innerHTML = `
+        <div style="background:#fff;padding:24px;border-radius:24px;width:340px;border:2px solid #E0A899;box-shadow:0 10px 30px rgba(0,0,0,0.1);box-sizing:border-box;">
+            <h4 style="margin-top:0;color:#4A3728;font-family:'Playfair Display',serif;font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                <i class="fas fa-money-bill-wave" style="color:#E0A899;"></i> Registrar Gasto Diario
+            </h4>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:12px;font-weight:600;color:#4A3728;display:block;margin-bottom:4px;">Nombre del Gasto</label>
+                <input type="text" id="gasto-nombre" placeholder="Ej: Pago de Luz" style="width:100%;padding:10px;border:1px solid #FAEDCD;border-radius:12px;background:#FEFAE0;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:12px;font-weight:600;color:#4A3728;display:block;margin-bottom:4px;">Monto ($)</label>
+                <input type="number" id="gasto-monto" placeholder="0" style="width:100%;padding:10px;border:1px solid #FAEDCD;border-radius:12px;background:#FEFAE0;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-size:12px;font-weight:600;color:#4A3728;display:block;margin-bottom:6px;">Medio Utilizado</label>
+                <div style="display:flex;gap:10px;">
+                    <label style="flex:1;background:#FEFAE0;padding:10px;border-radius:12px;border:1px solid #FAEDCD;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#4A3728;">
+                        <input type="radio" name="gasto-tipo" value="efectivo" checked> Efectivo
+                    </label>
+                    <label style="flex:1;background:#FEFAE0;padding:10px;border-radius:12px;border:1px solid #FAEDCD;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:#4A3728;">
+                        <input type="radio" name="gasto-tipo" value="transferencia"> Transf.
+                    </label>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button onclick="document.getElementById('modal-gasto-container').remove()" style="background:#64748b;color:#fff;border:none;padding:10px 16px;border-radius:50px;cursor:pointer;font-weight:600;font-size:13px;">Cancelar</button>
+                <button onclick="guardarGastoVentas()" style="background:#E0A899;color:#fff;border:none;padding:10px 20px;border-radius:50px;cursor:pointer;font-weight:700;font-size:13px;">Guardar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(div);
+}
+
+async function guardarGastoVentas() {
+    const nombre = document.getElementById('gasto-nombre').value.trim();
+    const monto = parseFloat(document.getElementById('gasto-monto').value) || 0;
+    const tipo = document.querySelector('input[name="gasto-tipo"]:checked').value;
+    
+    if(!nombre || monto <= 0) {
+        alert('Por favor complete el nombre y monto correctamente.');
+        return;
+    }
+    
+    try {
+        await safeFetch('/admin/agregar-gasto', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo, nombre, monto })
+        });
+        mostrarToast('💸 Gasto guardado con éxito');
+        document.getElementById('modal-gasto-container').remove();
+    } catch(e) {
+        mostrarToast('Error: ' + e.message, true);
+    }
 }
 
 function toggleCartMobile() {
@@ -1269,15 +1389,20 @@ async function abrirCajaProfesional(){const m=document.createElement('div');m.cl
 async function confirmarAperturaCaja(){const ef=parseFloat(document.getElementById('apertura-efectivo').value)||0;const d=await safeFetch('/admin/apertura-caja-profesional',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({montoEfectivo:ef})});if(d.success){mostrarToast('✅ Abierta');document.querySelector('.modal.active').remove();verEstadoCaja();}}
 
 async function cerrarCajaProfesional(){
-    if(!confirm('¿Confirmar cierre de caja?')) return;
-    const ef = parseFloat(prompt('💵 Efectivo total en caja ($):', '0')) || 0;
-    const tr = parseFloat(prompt('🏦 Transferencias recibidas ($):', '0')) || 0;
+    if(!confirm('¿Confirmar cierre de caja definitiva?')) return;
+    const ef = parseFloat(prompt('💵 Efectivo físico real entregado ($):', '0')) || 0;
+    
     try {
-        const d = await safeFetch('/admin/cierre-caja-profesional', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ efectivoEntregado: ef, transferenciaEntregada: tr }) });
+        const d = await safeFetch('/admin/cierre-caja-profesional', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ efectivoEntregado: ef }) 
+        });
+        
         if (d.success) {
-            mostrarToast('✅ Caja cerrada');
-            const hoy = new Date().toLocaleDateString('es-AR');
+            mostrarToast('✅ Caja cerrada exitosamente');
             const resumen = d.resumen;
+            const hoy = new Date().toLocaleDateString('es-AR');
             
             let nombreEmpresa = 'ESENCIA CURVY';
             let sloganEmpresa = 'Ropa en Talles Especiales';
@@ -1287,15 +1412,94 @@ async function cerrarCajaProfesional(){
                 nombreEmpresa = tienda?.titulo || 'ESENCIA CURVY';
                 sloganEmpresa = tienda?.mensajeBienvenida || 'Ropa en Talles Especiales';
             }
+
+            // Construcción del bloque de Gastos en Efectivo
+            let gastosEfHtml = '';
+            if(resumen.listaGastosEfectivo && resumen.listaGastosEfectivo.length > 0) {
+                resumen.listaGastosEfectivo.forEach(g => {
+                    gastosEfHtml += `<div style="display:flex;justify-content:space-between;padding-left:6px;"><span>• ${escapeHtml(g.nombre)}</span><span>$${g.monto}</span></div>`;
+                });
+            } else {
+                gastosEfHtml = '<div style="padding-left:6px;color:#777;">Sin gastos registrados</div>';
+            }
+
+            // Construcción del bloque de Gastos en Transferencia
+            let gastosTrHtml = '';
+            if(resumen.listaGastosTransferencia && resumen.listaGastosTransferencia.length > 0) {
+                resumen.listaGastosTransferencia.forEach(g => {
+                    gastosTrHtml += `<div style="display:flex;justify-content:space-between;padding-left:6px;"><span>• ${escapeHtml(g.nombre)}</span><span>$${g.monto}</span></div>`;
+                });
+            } else {
+                gastosTrHtml = '<div style="padding-left:6px;color:#777;">Sin gastos registrados</div>';
+            }
             
-            let html = `<div style="max-width:300px;padding:15px;font-family:'Courier New',monospace;font-size:11px;background:white"><div style="text-align:center;border-bottom:2px dashed #000;padding-bottom:8px;margin-bottom:8px"><strong style="font-size:14px">${escapeHtml(nombreEmpresa)}</strong><br>${escapeHtml(sloganEmpresa)}<br><strong>CIERRE DE CAJA</strong><br>${hoy}</div><div style="margin:8px 0"><strong>💵 EFECTIVO</strong><br>Inicial: ${fmt.format(resumen.montoInicialEfectivo||0)}<br>Ventas: ${fmt.format(resumen.ventasEfectivo||0)}<br>Esperado: ${fmt.format(resumen.totalEsperadoEfectivo||0)}<br>Entregado: ${fmt.format(ef)}<br>Diferencia: <strong style="color:${resumen.diferenciaEfectivo===0?'#10b981':'#ef4444'}">${fmt.format(resumen.diferenciaEfectivo||0)}</strong></div><div style="margin:8px 0;border-top:1px dashed #ccc;padding-top:8px"><strong>🏦 TRANSFERENCIA</strong><br>Inicial: ${fmt.format(resumen.montoInicialTransferencia||0)}<br>Ventas: ${fmt.format(resumen.ventasTransferencia||0)}<br>Web: ${fmt.format(resumen.ventasWebTransferencia||0)}<br>Esperado: ${fmt.format(resumen.totalEsperadoTransferencia||0)}<br>Entregado: ${fmt.format(tr)}<br>Diferencia: <strong style="color:${resumen.diferenciaTransferencia===0?'#10b981':'#ef4444'}">${fmt.format(resumen.diferenciaTransferencia||0)}</strong></div><div style="margin:8px 0;border-top:1px dashed #ccc;padding-top:8px;text-align:center"><strong>📦 Total ventas: ${resumen.cantidadVentas||0}</strong><br>${resumen.diferenciaEfectivo===0&&resumen.diferenciaTransferencia===0?'✅ ¡Balance perfecto!':'⚠️ Hay diferencias'}</div><div style="text-align:center;margin-top:12px;font-size:9px;border-top:1px solid #ccc;padding-top:8px">Cerrado por: ${escapeHtml(adminActual?.nombre || 'Admin')}<br>${new Date().toLocaleString('es-AR')}</div></div>`;
-            const el = document.createElement('div'); el.innerHTML = html; document.body.appendChild(el);
-            html2pdf().from(el).set({ margin: 0.5, filename: `cierre_caja_${hoy.replace(/\//g,'-')}.pdf`, jsPDF: { unit: 'mm', format: [80, 180] } }).save().then(() => el.remove());
+            let html = `
+            <div style="max-width:300px;padding:16px;font-family:'Courier New',monospace;font-size:11px;background:white;color:#000;line-height:1.4;">
+                <div style="text-align:center;border-bottom:2px dashed #000;padding-bottom:10px;margin-bottom:10px">
+                    <strong style="font-size:15px">${escapeHtml(nombreEmpresa)}</strong><br>
+                    ${escapeHtml(sloganEmpresa)}<br><br>
+                    <strong>COMPROBANTE DE CIERRE</strong><br>
+                    Fecha Impresión: ${hoy}
+                </div>
+                
+                <div style="margin-bottom:10px;font-size:10px;background:#f9f9f9;padding:6px;border:1px solid #ddd;border-radius:6px;">
+                    <strong>Caja Abierta Por:</strong> ${escapeHtml(resumen.abiertaPor)}<br>
+                    <strong>Fecha y Hora de Apertura:</strong><br>${resumen.aperturaTimestamp ? new Date(Number(resumen.aperturaTimestamp)).toLocaleString('es-AR') : hoy}
+                </div>
+
+                <div style="margin:10px 0; border-bottom:1px dashed #000; padding-bottom:10px;">
+                    <strong style="font-size:12px; display:block; border-bottom:1px solid #000; margin-bottom:4px;">💵 SECCIÓN EFECTIVO</strong>
+                    <div style="display:flex;justify-content:space-between;"><span>Inicial:</span><span>${fmt.format(resumen.montoInicialEfectivo)}</span></div>
+                    <div style="display:flex;justify-content:space-between;"><span>Ventas:</span><span>${fmt.format(resumen.ventasEfectivo)}</span></div>
+                    
+                    <div style="margin:4px 0;background:#fff5f5;padding:4px;border-radius:4px;">
+                        <span style="font-weight:bold;text-transform:uppercase;font-size:9px;color:#c00;">Gastos Detalle:</span>
+                        ${gastosEfHtml}
+                        <div style="display:flex;justify-content:space-between;font-weight:bold;margin-top:2px;border-top:1px dotted #c00;"><span>Gastos Total:</span><span>${fmt.format(resumen.totalGastosEfectivo)}</span></div>
+                    </div>
+                    
+                    <div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid #000;padding-top:4px;font-weight:bold;"><span>Esperado:</span><span>${fmt.format(resumen.totalEsperadoEfectivo)}</span></div>
+                    <div style="display:flex;justify-content:space-between;"><span>Entregado:</span><span>${fmt.format(ef)}</span></div>
+                    <div style="display:flex;justify-content:space-between;font-weight:bold;margin-top:2px;"><span>Diferencia:</span><span style="color:${resumen.diferenciaEfectivo===0?'#000':'#ef4444'}">${fmt.format(resumen.diferenciaEfectivo)}</span></div>
+                </div>
+
+                <div style="margin:10px 0;">
+                    <strong style="font-size:12px; display:block; border-bottom:1px solid #000; margin-bottom:4px;">🏦 SECCIÓN TRANSFERENCIA</strong>
+                    <div style="display:flex;justify-content:space-between;"><span>Ventas:</span><span>${fmt.format(resumen.ventasTransferencia)}</span></div>
+                    <div style="display:flex;justify-content:space-between;"><span>Web (Abonados):</span><span>${fmt.format(resumen.ventasWebTransferencia)}</span></div>
+                    
+                    <div style="margin:4px 0;background:#fff5f5;padding:4px;border-radius:4px;">
+                        <span style="font-weight:bold;text-transform:uppercase;font-size:9px;color:#c00;">Gastos Detalle:</span>
+                        ${gastosTrHtml}
+                        <div style="display:flex;justify-content:space-between;font-weight:bold;margin-top:2px;border-top:1px dotted #c00;"><span>Gastos Total:</span><span>${fmt.format(resumen.totalGastosTransferencia)}</span></div>
+                    </div>
+                    
+                    <div style="display:flex;justify-content:space-between;margin-top:6px;border-top:1px solid #000;padding-top:4px;font-weight:bold;"><span>Esperado:</span><span>${fmt.format(resumen.totalEsperadoTransferencia)}</span></div>
+                </div>
+
+                <div style="text-align:center;margin-top:16px;font-size:9px;border-top:1px solid #000;padding-top:8px">
+                    Cerrado por: ${escapeHtml(adminActual?.nombre || 'Admin')}<br>
+                    ${new Date().toLocaleString('es-AR')}
+                </div>
+            </div>`;
+            
+            const el = document.createElement('div'); 
+            el.innerHTML = html; 
+            document.body.appendChild(el);
+            
+            html2pdf().from(el).set({ 
+                margin: 0.5, 
+                filename: `cierre_caja_${hoy.replace(/\//g,'-')}.pdf`, 
+                jsPDF: { unit: 'mm', format: [80, 230] } 
+            }).save().then(() => el.remove());
+            
             verEstadoCaja();
         }
-    } catch(e) { mostrarToast('Error: ' + e.message, true); }
+    } catch(e) { 
+        mostrarToast('Error: ' + e.message, true); 
+    }
 }
-
+    
 async function cargarHistorialCajas(){const desde=document.getElementById('cajas-desde')?.value||'';const hasta=document.getElementById('cajas-hasta')?.value||'';const d=await safeFetch('/admin/historial-cajas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({desde,hasta})});const c=document.getElementById('historial-cajas');if(c&&d.lista)c.innerHTML=d.lista.map(ca=>`<div style="background:#f8fafc;border-radius:12px;padding:16px"><strong>${ca.fecha}</strong> | ${ca.cantidadVentas} ventas | Dif Ef: ${fmt.format(ca.diferenciaEfectivo||0)} | Dif Transf: ${fmt.format(ca.diferenciaTransferencia||0)}</div>`).join('');}
 
 async function seleccionarPlantilla(p){await safeFetch('/save-plantilla',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plantilla:p})});mostrarToast('✅ Guardado');}
