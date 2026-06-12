@@ -69,7 +69,13 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
 .product-info{padding:12px}
 .product-name{font-size:14px;font-weight:700;margin-bottom:4px;line-height:1.3}
 .product-prices{display:flex;align-items:baseline;gap:6px;margin-bottom:4px}
-.price-current{font-size:18px;font-weight:800;color:var(--primary)}
+.price-current {
+    font-family: 'Playfair Display', serif;
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: -0.3px;
+}
 .price-mayorista{font-size:10px;color:#FF8F00;font-weight:600}
 .btn-add-product{width:100%;padding:10px;background:var(--primary);color:white;border:none;border-radius:50px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
 .btn-add-product:disabled{background:#CCC;cursor:not-allowed}
@@ -108,6 +114,10 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
 .btn-secondary{background:#f5f5f5;color:var(--text-dark);border:none}
 .cart-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:1000;display:none}
 .cart-overlay.active{display:block}
+
+/* ==========================================================================
+   ESTILOS SÚPER COQUETTE Y PRECIOS NUMÉRICOS ORDENADOS (CARRITO)
+   ========================================================================== */
 .cart-sidebar {
     position: fixed;
     right: -100%;
@@ -183,6 +193,19 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
     transform: translateY(-2px);
     border-color: var(--secondary);
 }
+.cart-product-card .precio-monto-elegante {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text-dark);
+    letter-spacing: -0.5px;
+}
+.cart-product-card .subtotal-monto-elegante {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary);
+}
 .progreso-mayorista {
     background: #ffffff;
     border-radius: 16px;
@@ -190,6 +213,13 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
     margin: 16px 0 8px 0;
     border: 1px solid rgba(212, 163, 115, 0.25);
     box-shadow: 0 4px 10px rgba(212, 163, 115, 0.04);
+}
+.progreso-mayorista-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 12px;
 }
 .progreso-mayorista-titulo {
     font-family: 'Poppins', sans-serif;
@@ -286,19 +316,29 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(212, 163, 115, 0.2);
 }
 .cart-total span:first-child {
     font-family: 'Poppins', sans-serif;
-    font-weight: 500;
+    text-transform: uppercase;
+    font-weight: 600;
     color: var(--text-light);
-    font-size: 14px;
+    font-size: 12px;
+    letter-spacing: 1px;
 }
 .cart-total span:last-child {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Courier New', Courier, monospace;
     color: var(--primary);
-    font-size: 26px;
-    font-weight: 800;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: #FEFAE0;
+    padding: 4px 16px;
+    border-radius: 50px;
+    border: 1px solid rgba(212, 163, 115, 0.15);
+    box-shadow: inset 0 1px 3px rgba(74, 55, 40, 0.02);
 }
 .btn-checkout {
     width: 100%;
@@ -344,7 +384,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
 }
 
 /* ==========================================================================
-   CONTINUACIÓN ESTILOS GENERALES
+   CONTINUACIÓN ESTILOS GENERALES Y MEDIA QUERIES
    ========================================================================== */
 .footer{background:var(--primary);color:white;padding:32px 16px 20px;margin-top:40px}
 .footer-content{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:24px}
@@ -352,7 +392,6 @@ body{font-family:'Poppins',sans-serif;background:var(--bg-light);color:var(--tex
 .footer-section p{opacity:0.8;margin-bottom:6px;font-size:12px}
 .toast{position:fixed;bottom:16px;right:16px;background:var(--success);color:white;padding:12px 18px;border-radius:40px;font-weight:600;font-size:13px;z-index:2000;animation:slideIn 0.3s ease}
 .toast.error{background:var(--danger)}
-@ifndef slideIn
 @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 .whatsapp-float{position:fixed;bottom:80px;right:20px;background:#25D366;color:white;width:55px;height:55px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 4px 20px rgba(37,211,102,0.4);z-index:999;text-decoration:none;transition:all 0.3s}
 .whatsapp-float:hover{transform:scale(1.1)}
@@ -754,7 +793,7 @@ function renderizarCarrito(){
                     </div>
                     <p style="font-size:11px;color:var(--text-light);margin:2px 0 6px 0">${escapeHtml(it.vNom)}</p>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span style="font-weight:600;color:var(--text-dark);font-size:12px">${tieneMayorista?`<span class="precio-tachado">${fmt.format(it.precioOriginal)}</span><span class="precio-descuento">${fmt.format(it.precio)}</span>`:`${fmt.format(it.precio)}`}</span>
+                        <span class="precio-monto-elegante">${tieneMayorista?`<span class="precio-tachado">${fmt.format(it.precioOriginal)}</span><span class="precio-descuento">${fmt.format(it.precio)}</span>`:`${fmt.format(it.precio)}`} c/u</span>
                         <div class="quantity-control-wrapper">
                             <button class="quantity-btn-cart" onclick="modificarCantidadCarrito(${i},-1)">−</button>
                             <span style="min-width:24px;text-align:center;font-weight:600;font-size:12px;color:var(--text-dark)">${it.cant}</span>
@@ -763,6 +802,7 @@ function renderizarCarrito(){
                     </div>
                 </div>
             </div>
+            <div style="text-align:right;margin-top:8px;padding-top:6px;border-top:1px dotted rgba(212,163,115,0.15);font-size:11px;color:var(--text-light);">Subtotal: <strong class="subtotal-monto-elegante">${fmt.format(it.precio*it.cant)}</strong></div>
         </div>`;
     });
     c.innerHTML=h;
