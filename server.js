@@ -890,25 +890,37 @@ app.post('/admin/buscar-clientes', adminMiddleware(), async (req, res) => {
     res.json({ lista: clientes });
 });
 
-// ENDPOINT PARA ELIMINAR CLIENTE
+// ENDPOINT PARA ELIMINAR CLIENTE PROTEGIDO CON CONTRASEÑA
 app.post('/admin/eliminar-cliente', adminMiddleware('clientes'), async (req, res) => {
     try {
-        const { id } = req.body;
-        if (!id) return res.status(400).json({ error: 'ID de cliente requerido' });
+        const { id, adminPassword } = req.body;
+        if (!id || !adminPassword) return res.status(400).json({ error: 'Faltan datos obligatorios (ID o Contraseña)' });
 
-        // Buscamos el email antes de borrarlo para dejar registro en los logs
+        // 1. Verificación del candado: Buscamos la contraseña del admin que está ejecutando la acción
+        const adminPerfil = (await pool.query("SELECT password FROM perfiles WHERE usuario = $1", [req.admin.usuario])).rows[0];
+        if (!adminPerfil) return res.status(404).json({ error: 'Perfil de administrador no encontrado' });
+
+        // Comparar la contraseña ingresada con la de la base de datos
+        const passwordCorrecta = await bcrypt.compare(adminPassword, adminPerfil.password);
+        if (!passwordCorrecta) {
+            return res.status(401).json({ error: 'Contraseña de administrador incorrecta. Operación denegada.' });
+        }
+
+        // 2. Si la clave es correcta, procedemos a buscar al cliente y borrarlo
         const cliente = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
-        if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
+        if (!cliente) return res.status(404).json({ error: 'El cliente que intentás borrar no existe' });
 
         await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
         
-        await logActividad(req.admin.nombre, 'ELIMINAR_CLIENTE', `Borró al cliente: ${cliente.email}`, req);
+        await logActividad(req.admin.nombre, 'ELIMINAR_CLIENTE', `Borró al cliente: ${cliente.email} (Clave verificada)`, req);
         res.json({ success: true });
+
     } catch (e) {
-        console.error('❌ Error al eliminar cliente:', e.message);
+        console.error('❌ Error al eliminar cliente con protección:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
+
 
 // ENDPOINT PARA VER EL HISTORIAL DE COMPRAS Y PEDIDOS DEL CLIENTE
 app.post('/admin/historial-cliente', adminMiddleware('clientes'), async (req, res) => {
