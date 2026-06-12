@@ -909,13 +909,44 @@ app.post('/admin/apertura-caja-profesional', adminMiddleware('ventas'), async (r
     try {
         const { montoEfectivo, montoTransferencia } = req.body;
         const hoy = new Date().toLocaleDateString('es-AR');
-        const existe = await pool.query('SELECT * FROM caja_profesional WHERE fecha = $1', [hoy]);
-        if (existe.rows.length > 0) return res.status(400).json({ error: 'La caja ya fue abierta hoy' });
-        await pool.query(`INSERT INTO caja_profesional (fecha, "aperturaTimestamp", "abiertaPor", "montoInicialEfectivo", "montoInicialTransferencia", estado) VALUES ($1,$2,$3,$4,$5,'abierta')`,
-            [hoy, Date.now(), req.admin.nombre, montoEfectivo||0, montoTransferencia||0]);
-        await logActividad(req.admin.nombre, 'APERTURA_CAJA', `Ef: ${fmt.format(montoEfectivo||0)} | Transf: ${fmt.format(montoTransferencia||0)}`, req);
+        const existe = (await pool.query('SELECT * FROM caja_profesional WHERE fecha = $1', [hoy])).rows[0];
+        
+        if (existe) {
+            if (existe.estado === 'abierta') {
+                return res.status(400).json({ error: 'La caja ya se encuentra abierta' });
+            }
+            // Si ya existe pero está cerrada, se reabre limpiando los datos de cierre previos
+            await pool.query(`
+                UPDATE caja_profesional 
+                SET estado = 'abierta', 
+                    "montoInicialEfectivo" = $1, 
+                    "montoInicialTransferencia" = $2, 
+                    "aperturaTimestamp" = $3, 
+                    "abiertaPor" = $4,
+                    "cerradaPor" = NULL, 
+                    "cierreTimestamp" = NULL,
+                    "efectivoEntregado" = 0,
+                    "transferenciaEntregada" = 0,
+                    "diferenciaEfectivo" = 0,
+                    "diferenciaTransferencia" = 0
+                WHERE fecha = $5
+            `, [montoEfectivo || 0, montoTransferencia || 0, Date.now(), req.admin.nombre, hoy]);
+            
+            await logActividad(req.admin.nombre, 'REAPERTURA_CAJA', `Ef: ${fmt.format(montoEfectivo||0)} | Transf: ${fmt.format(montoTransferencia||0)}`, req);
+        } else {
+            // Si no existe registro para el día de hoy, se inserta una nueva apertura
+            await pool.query(`
+                INSERT INTO caja_profesional (fecha, "aperturaTimestamp", "abiertaPor", "montoInicialEfectivo", "montoInicialTransferencia", estado) 
+                VALUES ($1,$2,$3,$4,$5,'abierta')
+            `, [hoy, Date.now(), req.admin.nombre, montoEfectivo || 0, montoTransferencia || 0]);
+            
+            await logActividad(req.admin.nombre, 'APERTURA_CAJA', `Ef: ${fmt.format(montoEfectivo||0)} | Transf: ${fmt.format(montoTransferencia||0)}`, req);
+        }
+        
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 app.post('/admin/cierre-caja-profesional', adminMiddleware('ventas'), async (req, res) => {
