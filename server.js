@@ -637,7 +637,35 @@ app.post('/save-config', adminMiddleware('config'), async (req, res) => {
     res.json({ success: true });
 });
 app.post('/save-tienda-config', adminMiddleware('config'), async (req, res) => { if(req.body.tienda) await setConfig('tienda', req.body.tienda); res.json({ success: true }); });
-app.post('/save-mayorista-config', adminMiddleware('config'), async (req, res) => { await setConfig('mayorista', req.body); await logActividad('Admin', 'GUARDAR_MAYORISTA', JSON.stringify(req.body), req); res.json({ success: true }); });
+app.post(['/admin/guardar-mayorista', '/save-mayorista-config'], adminMiddleware('config'), async (req, res) => {
+    try {
+        let datos = req.body;
+        let habilitado = datos.hasOwnProperty('habilitado') ? datos.habilitado : false;
+        let modo = datos.modo || 'cantidad';
+        let valorCantidad = parseInt(datos.valorCantidad || datos.cantidad || 3);
+        let montoCrudo = String(datos.valorMonto || datos.monto || '80000');
+        let valorMonto = parseFloat(montoCrudo.replace(/\./g, '').replace(',', '.')) || 0;
+
+        const estructuraFinal = {
+            habilitado: !!habilitado,
+            modo: modo,
+            valorCantidad: valorCantidad,
+            valorMonto: valorMonto
+        };
+
+        await pool.query(
+            'INSERT INTO configuracion (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2', 
+            ['mayorista', JSON.stringify(estructuraFinal)]
+        );
+
+        await logActividad(req.admin?.nombre || 'Admin', 'GUARDAR_MAYORISTA', `Modo: ${modo} | Min: ${valorCantidad}U / $${valorMonto}`, req);
+        res.json({ success: true, mayorista: estructuraFinal });
+    } catch (e) {
+        console.error('❌ Error crítico al procesar configuración mayorista:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/save-diseno-config', adminMiddleware('config'), async (req, res) => { if(req.body.diseno) await setConfig('diseno', req.body.diseno); res.json({ success: true }); });
 app.post('/save-home-config', adminMiddleware('config'), async (req, res) => { if(req.body.heroConfig) await setConfig('heroConfig', req.body.heroConfig); res.json({ success: true }); });
 app.post('/save-plantilla', adminMiddleware('web'), async (req, res) => { await setConfig('plantilla', req.body.plantilla); res.json({ success: true }); });
