@@ -963,23 +963,38 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
             )
         `);
         
-        // CANDADO: Verificar si hay una caja abierta actualmente
-        const cajaAbierta = (await pool.query("SELECT * FROM caja_profesional WHERE estado = 'abierta'")).rows[0];
-        if (!cajaAbierta) {
-            return res.status(400).json({ error: '🔒 Operación denegada: Debe abrir la caja obligatoriamente antes de registrar un gasto.' });
+        // Obtener los formatos de fecha exactos de hoy
+        const ahora = new Date();
+        const d = ahora.getDate();
+        const m = ahora.getMonth() + 1;
+        const y = ahora.getFullYear();
+        const f1 = `${d}/${m}/${y}`;
+        const f2 = `${d.toString().padStart(2,'0')}/${m.toString().padStart(2,'0')}/${y}`;
+
+        // CANDADO ESTRICTO: Verificar si hay una caja abierta HOY
+        const cajaAbiertaHoy = (await pool.query(
+            "SELECT * FROM caja_profesional WHERE estado = 'abierta' AND (fecha = $1 OR fecha = $2)", 
+            [f1, f2]
+        )).rows[0];
+        
+        if (!cajaAbiertaHoy) {
+            return res.json({ 
+                success: false, 
+                error: '🔒 Operación denegada: No hay ninguna caja abierta el día de hoy. Debe realizar la Apertura de Caja obligatoriamente.' 
+            });
         }
 
         const { tipo, nombre, monto } = req.body;
-        const hoy = new Date().toLocaleDateString('es-AR');
         
         await pool.query(`
             INSERT INTO gastos (fecha, tipo, nombre, monto, usuario, timestamp)
             VALUES ($1, $2, $3, $4, $5, $6)
-        `, [hoy, tipo, nombre, parseFloat(monto), req.admin.nombre, Date.now()]);
+        `, [f2, tipo, nombre, parseFloat(monto), req.admin.nombre, Date.now()]);
         
         res.json({ success: true });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        console.error('❌ Error al registrar gasto:', e.message);
+        res.json({ success: false, error: 'Error interno: ' + e.message });
     }
 });
 
