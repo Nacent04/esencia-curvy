@@ -655,8 +655,24 @@ function agregarDesdeModal(){if(!productoModalActual)return;const v=productoModa
 function cerrarModal(){document.getElementById('product-modal').classList.remove('active');productoModalActual=null}
 function toggleCarrito(){document.getElementById('cart-sidebar').classList.toggle('active');document.getElementById('cart-overlay').classList.toggle('active')}
 function actualizarWhatsAppPago(){const wsp=configuracion.redes?.whatsapp||'';const el=document.getElementById('whatsapp-pago');if(el&&wsp){el.style.display='flex';el.href=`https://wa.me/${wsp.replace(/\D/g,'')}?text=Hola%20Esencia%20Curvy%20adjunto%20comprobante%20de%20pago`}}
-function irACheckout(){if(!carrito.length){mostrarToast('🛒 Carrito vacío','error');return}const token=localStorage.getItem('token');if(configuracion.registroObligatorio&&!token){mostrarToast('🔐 Iniciá sesión para finalizar','error');setTimeout(()=>window.location.href='/login',1500);return}guardarCarritoLocal();window.location.href='/checkout'}
 
+function irACheckout(){
+    if(!carrito.length){mostrarToast('🛒 Carrito vacío','error');return}
+    const token=localStorage.getItem('token');
+    
+    // Guardamos el carrito actual de forma explícita antes de cualquier movimiento
+    guardarCarritoLocal();
+    
+    if(configuracion.registroObligatorio && !token){
+        // Guardamos una copia especial para recuperarla post-login
+        localStorage.setItem('carrito_respaldo_login', JSON.stringify(carrito));
+        mostrarToast('🔐 Iniciá sesión para finalizar','error');
+        setTimeout(()=>window.location.href='/login',1500);
+        return;
+    }
+    window.location.href='/checkout';
+}
+    
 function actualizarProgresoMayorista(){
     const container=document.getElementById('progreso-mayorista-container');
     if(!container)return;
@@ -822,6 +838,25 @@ function volverMenuAyuda(){document.getElementById('asistente-mensaje').innerHTM
 setTimeout(()=>{const burbuja=document.getElementById('asistente-burbuja');if(burbuja&&burbuja.style.display==='none'){burbuja.style.display='block'}},30000);
 
 document.addEventListener('DOMContentLoaded',()=>{
+    // Intentamos fusionar o recuperar el carrito de respaldo antes de renderizar nada
+    const token = localStorage.getItem('token');
+    const respaldo = localStorage.getItem('carrito_respaldo_login');
+    
+    if (respaldo) {
+        try {
+            const tempCart = JSON.parse(respaldo);
+            if (tempCart && tempCart.length > 0) {
+                carrito = tempCart;
+                // Lo guardamos definitivamente bajo la llave del nuevo usuario
+                const key = token ? 'carrito_' + token : 'carrito_anonimo';
+                localStorage.setItem(key, JSON.stringify(carrito));
+                localStorage.setItem('carrito_timestamp', Date.now());
+            }
+        } catch(e) {}
+        // Limpiamos el respaldo para que no se duplique en el futuro
+        localStorage.removeItem('carrito_respaldo_login');
+    }
+
     cargarDatos();
     document.addEventListener('dragstart',(e)=>{if(e.target.tagName==='IMG')e.preventDefault()});
     document.getElementById('search-input').addEventListener('keypress',e=>{if(e.key==='Enter')buscarProductos()});
