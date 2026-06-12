@@ -1576,10 +1576,18 @@ async function verHistorialClienteCompleto(clienteId, nombreCliente) {
     }
 }
 
-// ====== FUNCIÓN PARA ELIMINAR EL CLIENTE DE FORMA DEFINITIVA ======
+// ====== FUNCIÓN PARA ELIMINAR EL CLIENTE CON CLAVE DE ADMIN ======
 async function eliminarCliente(clienteId, nombreCliente) {
-    const seguro = confirm(`⚠️ ¿Estás completamente seguro de que querés eliminar a "${nombreCliente}"?\nEsta acción no se puede deshacer y borrará permanentemente la cuenta del usuario.`);
+    const seguro = confirm(`⚠️ ¿Estás seguro de que querés eliminar permanentemente a "${nombreCliente}"?`);
     if (!seguro) return;
+
+    // Candado de seguridad: Pedimos la clave de administrador
+    const adminPassword = prompt(`🔐 Para eliminar a este cliente, por favor ingresá tu contraseña de Administrador:`);
+    if (adminPassword === null) return; // Si cancela, no hace nada
+    if (!adminPassword.trim()) {
+        alert("❌ Operación cancelada: La contraseña no puede estar vacía.");
+        return;
+    }
 
     try {
         const response = await fetch('/admin/eliminar-cliente', {
@@ -1588,18 +1596,17 @@ async function eliminarCliente(clienteId, nombreCliente) {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + localStorage.getItem('token')
             },
-            body: JSON.stringify({ id: clienteId })
+            body: JSON.stringify({ id: clienteId, adminPassword: adminPassword }) // Mandamos la clave al servidor
         });
 
         const res = await response.json();
         if (res.success) {
             alert('✨ Cliente eliminado con éxito de la base de datos.');
-            // Ejecutamos dinámicamente la recarga según el nombre de tu función de renderizado
             if (typeof cargarClientes === 'function') cargarClientes();
             else if (typeof listarClientes === 'function') listarClientes();
             else window.location.reload();
         } else {
-            alert(res.error || 'No se pudo eliminar al cliente');
+            alert('❌ ' + (res.error || 'No se pudo eliminar al cliente'));
         }
     } catch (error) {
         console.error('Error:', error);
