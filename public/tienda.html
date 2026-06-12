@@ -409,7 +409,93 @@ function toggleCarrito(){document.getElementById('cart-sidebar').classList.toggl
 function actualizarWhatsAppPago(){const wsp=configuracion.redes?.whatsapp||'';const el=document.getElementById('whatsapp-pago');if(el&&wsp){el.style.display='flex';el.href=`https://wa.me/${wsp.replace(/\D/g,'')}?text=Hola%20Esencia%20Curvy%20adjunto%20comprobante%20de%20pago`}}
 function irACheckout(){if(!carrito.length){mostrarToast('🛒 Carrito vacío','error');return}const token=localStorage.getItem('token');if(configuracion.registroObligatorio&&!token){mostrarToast('🔐 Iniciá sesión para finalizar','error');setTimeout(()=>window.location.href='/login',1500);return}guardarCarritoLocal();window.location.href='/checkout'}
 
-function actualizarProgresoMayorista(){const container=document.getElementById('progreso-mayorista-container');if(!container)return;if(!configuracion.mayorista?.habilitado){container.innerHTML='';return}const cantTotal=carrito.reduce((s,i)=>s+i.cant,0);const montoTotal=carrito.reduce((s,i)=>s+(i.precioOriginal||i.precio)*i.cant,0);const modo=configuracion.mayorista.modo||'cantidad';const metaCant=configuracion.mayorista.valorCantidad||3;const metaMonto=configuracion.mayorista.valorMonto||80000;let progreso=0,metaTexto='',actualTexto='';if(modo==='cantidad'){progreso=Math.min(100,(cantTotal/metaCant)*100);metaTexto=`${metaCant} unid.`;actualTexto=`${cantTotal} unid.`}else if(modo==='monto'){progreso=Math.min(100,(montoTotal/metaMonto)*100);metaTexto=fmt.format(metaMonto);actualTexto=fmt.format(montoTotal)}else{const pC=Math.min(100,(cantTotal/metaCant)*100);const pM=Math.min(100,(montoTotal/metaMonto)*100);progreso=Math.min(pC,pM);metaTexto=`${metaCant} unid. y ${fmt.format(metaMonto)}`;actualTexto=`${cantTotal} unid. y ${fmt.format(montoTotal)}`}if(progreso>=100){container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-completado">🎉 ¡DESCUENTO MAYORISTA APLICADO! 🎉</div></div>`}else{container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-mayorista-header"><span class="progreso-mayorista-titulo">🏷️ Progreso Mayorista</span><span class="progreso-mayorista-porcentaje">${Math.round(progreso)}%</span></div><div class="progreso-barra"><div class="progreso-relleno" style="width:${progreso}%"></div></div><div class="progreso-meta"><span>${actualTexto}</span><span>🎯 ${metaTexto}</span></div></div>`}}
+function actualizarProgresoMayorista(){
+    const container=document.getElementById('progreso-mayorista-container');
+    if(!container)return;
+    
+    let confMayorista = configuracion.mayorista;
+    if (typeof confMayorista === 'string') {
+        try { confMayorista = JSON.parse(confMayorista); } catch(e) { confMayorista = {}; }
+    }
+    
+    if(!confMayorista || !confMayorista.habilitado){
+        container.innerHTML='';
+        return;
+    }
+    
+    const cantTotal=carrito.reduce((s,i)=>s+i.cant,0);
+    const montoTotal=carrito.reduce((s,i)=>s+(i.precioOriginal||i.precio)*i.cant,0);
+    
+    const modo=confMayorista.modo||'cantidad';
+    const metaCant=parseInt(confMayorista.valorCantidad)||3;
+    const metaMonto=parseFloat(confMayorista.valorMonto)||80000;
+    
+    let progreso=0,metaTexto='',actualTexto='';
+    if(modo==='cantidad'){
+        progreso=Math.min(100,(cantTotal/metaCant)*100);
+        metaTexto=`${metaCant} unid.`;
+        actualTexto=`${cantTotal} unid.`;
+    }else if(modo==='monto'){
+        progreso=Math.min(100,(montoTotal/metaMonto)*100);
+        metaTexto=fmt.format(metaMonto);
+        actualTexto=fmt.format(montoTotal);
+    }else{
+        const pC=Math.min(100,(cantTotal/metaCant)*100);
+        const pM=Math.min(100,(montoTotal/metaMonto)*100);
+        progreso=Math.min(pC,pM);
+        metaTexto=`${metaCant} unid. y ${fmt.format(metaMonto)}`;
+        actualTexto=`${cantTotal} unid. y ${fmt.format(montoTotal)}`;
+    }
+    
+    if(progreso>=100){
+        container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-completado">🎉 ¡DESCUENTO MAYORISTA APLICADO! 🎉</div></div>`;
+    }else{
+        container.innerHTML=`<div class="progreso-mayorista"><div class="progreso-mayorista-header"><span class="progreso-mayorista-titulo">🏷️ Progreso Mayorista</span><span class="progreso-mayorista-porcentaje">${Math.round(progreso)}%</span></div><div class="progreso-barra"><div class="progreso-relleno" style="width:${progreso}%"></div></div><div class="progreso-meta"><span>${actualTexto}</span><span>🎯 ${metaTexto}</span></div></div>`;
+    }
+}
+
+function recalcularPreciosMayoristas(){
+    let confMayorista = configuracion.mayorista;
+    if (typeof confMayorista === 'string') {
+        try { confMayorista = JSON.parse(confMayorista); } catch(e) { confMayorista = {}; }
+    }
+
+    if(!confMayorista || !confMayorista.habilitado){
+        carrito.forEach(i=>{
+            if(i.precioOriginal){
+                i.precio=i.precioOriginal;
+                delete i.precioOriginal;
+            }
+        });
+        renderizarCarrito();
+        actualizarProgresoMayorista();
+        return;
+    }
+    
+    const cantTotal=carrito.reduce((s,i)=>s+i.cant,0);
+    const montoTotal=carrito.reduce((s,i)=>s+(i.precioOriginal||i.precio)*i.cant,0);
+    
+    const modo = confMayorista.modo || 'cantidad';
+    const valorCantidad = parseInt(confMayorista.valorCantidad) || 3;
+    const valorMonto = parseFloat(confMayorista.valorMonto) || 80000;
+    
+    const cumple = modo==='cantidad'?cantTotal>=valorCantidad:modo==='monto'?montoTotal>=valorMonto:cantTotal>=valorCantidad&&montoTotal>=valorMonto;
+    
+    carrito.forEach(i=>{
+        if(i.esManual)return;
+        const p=productos.find(x=>x.id==i.pId);
+        if(!p)return;
+        if(cumple && p.precioMayor>0){
+            if(!i.precioOriginal) i.precioOriginal=i.precio;
+            i.precio=p.precioMayor;
+        }else if(i.precioOriginal){
+            i.precio=i.precioOriginal;
+            delete i.precioOriginal;
+        }
+    });
+    renderizarCarrito();
+    actualizarProgresoMayorista();
+}
 
 function renderizarCarrito(){const c=document.getElementById('cart-items');const t=document.getElementById('cart-total');const cnt=document.getElementById('cart-count');if(!c||!t||!cnt)return;if(!carrito.length){c.innerHTML='<div style="text-align:center;padding:48px;color:#666"><i class="fas fa-shopping-bag" style="font-size:48px;margin-bottom:12px;opacity:0.4"></i><h3>Tu pedido está vacío</h3><p style="font-size:13px">¡Agregá productos desde la tienda!</p></div>';t.textContent='$0';cnt.textContent='0';return}let h='',total=0,cantTotal=0;carrito.forEach((it,i)=>{total+=it.precio*it.cant;cantTotal+=it.cant;const tieneMayorista=it.precioOriginal&&it.precio<it.precioOriginal;h+=`<div class="cart-product-card"><div style="display:flex;gap:10px"><img src="${sanitizarUrl(it.vFoto)}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;pointer-events:none" onerror="this.src='https://via.placeholder.com/60'" draggable="false"><div style="flex:1"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:13px">${escapeHtml(it.pNom)} ${tieneMayorista?'<span style="background:#FF8F00;color:white;padding:2px 5px;border-radius:10px;font-size:8px">MAY</span>':''}</span><button onclick="eliminarDelCarrito(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:14px"><i class="fas fa-times"></i></button></div><p style="font-size:10px;color:#666;margin:4px 0">${escapeHtml(it.vNom)}</p><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font-weight:700;color:#1a1a1a;font-size:13px">${tieneMayorista?`<span class="precio-tachado">${fmt.format(it.precioOriginal)}</span> <span class="precio-descuento">${fmt.format(it.precio)}</span>`:`${fmt.format(it.precio)}`} c/u</span><div style="display:flex;align-items:center;gap:2px;background:#f5f5f5;border-radius:20px;padding:2px"><button onclick="modificarCantidadCarrito(${i},-1)" style="width:28px;height:28px;border:none;background:white;border-radius:50%;font-weight:700;cursor:pointer;font-size:14px">−</button><span style="min-width:28px;text-align:center;font-weight:700;font-size:13px">${it.cant}</span><button onclick="modificarCantidadCarrito(${i},1)" style="width:28px;height:28px;border:none;background:white;border-radius:50%;font-weight:700;cursor:pointer;font-size:14px">+</button></div></div><div style="text-align:right;margin-top:8px;padding-top:6px;border-top:1px solid #eee;font-size:11px">Subtotal: <strong style="color:#1a1a1a;font-size:14px">${fmt.format(it.precio*it.cant)}</strong></div></div></div></div>`});c.innerHTML=h;t.textContent=fmt.format(total);cnt.textContent=cantTotal;actualizarProgresoMayorista()}
 function modificarCantidadCarrito(i,d){const it=carrito[i];if(!it)return;const nc=it.cant+d;if(nc<=0){eliminarDelCarrito(i);return}if(!it.esManual){const p=productos.find(x=>x.id==it.pId);const v=p?.variantes?.find(x=>x.nombre===it.vNom);if(v&&v.stock<nc){mostrarToast('❌ Stock insuficiente','error');return}}it.cant=nc;recalcularPreciosMayoristas();guardarCarritoLocal();renderizarCarrito();actualizarProgresoMayorista()}
