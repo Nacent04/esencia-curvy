@@ -756,25 +756,75 @@ app.post('/tienda/listar-productos', async (req, res) => {
     res.json({ productos: prods, categorias: cats.map(x => ({ ...x, subcategorias: JSON.parse(x.subcategorias||'[]') })), metodosEnvio: metodos.map(m => m.nombre), configuracion: c });
 });
 
+// ENDPOINT DE CREAR PEDIDO CORREGIDO (SOLUCIÓN CHECKOUT VACÍO)
 app.post('/tienda/crear-pedido', authMiddleware, async (req, res) => {
     try {
-        const { carrito, cliente, total, tipoEntrega, metodoEnvio } = req.body;
-        if (!carrito?.length) return res.status(400).json({ error: 'Carrito vacío' });
-        const u = (await pool.query('SELECT * FROM usuarios WHERE id=$1', [req.usuario.id])).rows[0];
-        cliente.nombre = u.nombre; cliente.apellido = u.apellido; cliente.email = u.email; cliente.dni = u.dni||'';
-        for (let it of carrito) {
-            if (it.esManual) continue;
-            const stockActual = (await pool.query('SELECT stock FROM variantes WHERE "productoId"=$1 AND nombre=$2', [it.pId, it.vNom])).rows[0];
-            if (!stockActual || stockActual.stock < it.cant) return res.status(400).json({ error: `Stock insuficiente: ${it.pNom} - ${it.vNom}. Disponible: ${stockActual?.stock || 0}` });
+        // Leemos de forma flexible cualquier propiedad que use tu frontend para mandar la compra
+        const carritoCrudo = req.body.carrito || req.body.items || req.body.productos;
+        const { cliente, total, tipoEntrega, metodoEnvio } = req.body;
+        
+        // Convertimos a arreglo seguro en caso de que venga formateado como texto
+        const carrito = typeof carritoCrudo === 'string' ? JSON.parse(carritoCrudo) : (carritoCrudo || []);
+
+        if (!carrito || carrito.length === 0) {
+            return res.status(400).json({ error: 'Tu pedido está vacío. Agregá productos al carrito antes de finalizar.' });
         }
-        for (let it of carrito) { if(it.esManual) continue; await pool.query('UPDATE variantes SET stock=stock-$1 WHERE "productoId"=$2 AND nombre=$3', [it.cant, it.pId, it.vNom]); }
+
+        // Buscamos los datos limpios del cliente autenticado en la base de datos
+        const u = (await pool.query('SELECT * FROM usuarios WHERE id=$1', [req.usuario.id])).rows[0];
+        
+        // Aseguramos la existencia del objeto cliente para que no de error
+        const clienteFinal = cliente || {};
+        clienteFinal.nombre = u.nombre; 
+        clienteFinal.apellido = u.apellido; 
+        clienteFinal.email = u.email; 
+        clienteFinal.dni = u.dni || '';
+
+        // Control estricto de Stock antes de procesar el pago
+        for (let it of carrito) {
+            if (it.esManual || !it.pId) continue;
+            
+            // Buscamos por ID de producto o nombre de variante
+            const varianteNom = it.vNom || it.variante || '';
+            const stockActual = (await pool.query('SELECT stock FROM variantes WHERE "productoId"=$1 AND nombre=$2', [it.pId, varianteNom])).rows[0];
+            
+            if (!stockActual || stockActual.stock < it.cant) {
+                return res.status(400).json({ 
+                    error: `Stock insuficiente para: ${it.pNom || 'Producto'}. Disponible: ${stockActual?.stock || 0} unidades.` 
+                });
+            }
+        }
+
+        // Si el stock alcanza, procedemos a descontarlo de la base de datos
+        for (let it of carrito) { 
+            if (it.esManual || !it.pId) continue; 
+            const varianteNom = it.vNom || it.variante || '';
+            await pool.query('UPDATE variantes SET stock=stock-$1 WHERE "productoId"=$2 AND nombre=$3', [it.cant, it.pId, varianteNom]); 
+        }
+
+        // Generamos el ID único de la orden
         const id = 'PED-' + Date.now();
-        await pool.query("INSERT INTO pedidos (id,fecha,\"fechaTimestamp\",items,total,cliente,\"tipoEntrega\",\"metodoEnvio\",estado,origen,\"usuarioId\") VALUES ($1,TO_CHAR(NOW(),'DD/MM/YYYY HH24:MI:SS'),$2,$3,$4,$5,$6,$7,'pendiente','tienda',$8)",
-            [id, Date.now(), JSON.stringify(carrito), total, JSON.stringify(cliente), tipoEntrega, metodoEnvio, u.id]);
+        const totalFinal = total || 0;
+        const entrega = tipoEntrega || 'local';
+        const envio = metodoEnvio || '';
+
+        // Guardamos el pedido definitivo en la base de datos
+        await pool.query(
+            `INSERT INTO pedidos (id, fecha, "fechaTimestamp", items, total, cliente, "tipoEntrega", "metodoEnvio", estado, origen, "usuarioId") 
+             VALUES ($1, TO_CHAR(NOW(), 'DD/MM/YYYY HH24:MI:SS'), $2, $3, $4, $5, $6, $7, 'pendiente', 'tienda', $8)`,
+            [id, Date.now(), JSON.stringify(carrito), totalFinal, JSON.stringify(clienteFinal), entrega, envio, u.id]
+        );
+
+        // Notificación interna en el sistema y registro de auditoría
         await crearNotificacion('pedido', '🛍️ Nuevo pedido', `#${id}`);
-        await logActividad(cliente.nombre, 'PEDIDO_WEB', `Pedido #${id}`, req);
-        res.json({ success: true, pedidoId: id });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+        await logActividad(clienteFinal.nombre, 'PEDIDO_WEB', `Generó el pedido web #${id}`, req);
+        
+        return res.json({ success: true, pedidoId: id });
+
+    } catch(e) { 
+        console.error('❌ Error crítico al procesar pedido en checkout:', e.message);
+        return res.status(500).json({ error: 'Error interno del servidor al procesar el checkout.' }); 
+    }
 });
 
 app.post('/tienda/listar-pedidos', async (req, res) => {
