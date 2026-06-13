@@ -30,15 +30,8 @@
             flex-direction: column;
         }
         .checkout-header {
-            background: var(--bg-white);
-            padding: 16px 20px;
-            box-shadow: var(--shadow-md);
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            background: var(--bg-white); padding: 16px 20px; box-shadow: var(--shadow-md);
+            display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100;
         }
         .checkout-header h1 { font-size: 20px; color: var(--primary); display: flex; align-items: center; gap: 10px; }
         .back-btn {
@@ -49,28 +42,16 @@
         .back-btn:hover { background: #F0E6DC; color: var(--text-dark); }
         
         .checkout-container {
-            max-width: 800px;
-            width: 100%;
-            margin: 24px auto;
-            padding: 0 20px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
+            max-width: 800px; width: 100%; margin: 24px auto; padding: 0 20px;
+            flex: 1; display: flex; flex-direction: column; gap: 24px;
         }
         
-        .step-card {
-            background: var(--bg-white);
-            border-radius: 24px;
-            padding: 24px;
-            box-shadow: var(--shadow-md);
-        }
+        .step-card { background: var(--bg-white); border-radius: 24px; padding: 24px; box-shadow: var(--shadow-md); }
         .step-card h2 {
             font-size: 18px; color: var(--primary); margin-bottom: 20px;
             display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #FDF8F4; padding-bottom: 10px;
         }
         
-        /* Paso 1: Carrito */
         .summary-list { margin-bottom: 16px; }
         .summary-item {
             display: flex; justify-content: space-between; align-items: center;
@@ -85,7 +66,6 @@
             font-size: 18px; font-weight: 800; color: var(--primary);
         }
 
-        /* Paso 2: Grilla de Envios */
         .delivery-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
         @media (min-width: 500px) { .delivery-grid { grid-template-columns: 1fr 1fr 1fr; } }
         .delivery-box {
@@ -97,16 +77,13 @@
         .delivery-box p { font-size: 11px; color: var(--text-light); }
         .delivery-box.active { border-color: var(--primary); background: #FDF8F4; }
         
-        /* Formularios */
         .form-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
         @media (min-width: 640px) { .form-row { grid-template-columns: 1fr 1fr; } }
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-dark); }
-        .form-group label i { color: var(--primary); margin-right: 6px; }
         .form-group input, .form-group select {
             width: 100%; padding: 14px; border: 2px solid #F0E6DC; border-radius: 14px; font-size: 14px;
         }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
         .form-group input[readonly] { background: #F8F2EC; color: var(--text-light); cursor: not-allowed; border-color: #E8DCD2; }
         .bloqueado-aviso { display: block; font-size: 10px; color: var(--primary); margin-top: 4px; font-weight: 500; }
         
@@ -139,11 +116,10 @@
     
     <div class="checkout-container" id="main-checkout">
         
-        <!-- PASO 1: CONFIRMAR CARRITO -->
         <div class="step-card">
             <h2><i class="fas fa-shopping-basket"></i> Paso 1: Confirmar Carrito</h2>
             <div class="summary-list" id="lista-productos-final">
-                <!-- Se rellena con JS -->
+                <p style="text-align: center; color: var(--text-light);">Cargando tu bolso de compras...</p>
             </div>
             <div class="total-box">
                 <span>Monto Total de la Orden:</span>
@@ -151,7 +127,6 @@
             </div>
         </div>
 
-        <!-- PASO 2: MÉTODO DE ENTREGA -->
         <div class="step-card">
             <h2><i class="fas fa-truck"></i> Paso 2: Método de Entrega</h2>
             <div class="delivery-grid">
@@ -173,45 +148,42 @@
             </div>
         </div>
 
-        <!-- PASO 3: DATOS PERSONALES Y DOMICILIO -->
         <div class="step-card">
             <h2><i class="fas fa-user-edit"></i> Paso 3: Datos de Facturación y Entrega</h2>
             
-            <!-- Bloque Fijo Datos Personales -->
             <div class="form-row">
                 <div class="form-group">
-                    <label><i class="fas fa-user"></i> Nombre (No editable)</label>
+                    <label>Nombre (No editable)</label>
                     <input type="text" id="c-nombre" readonly>
                     <span class="bloqueado-aviso"><i class="fas fa-lock"></i> Bloqueado por perfil</span>
                 </div>
                 <div class="form-group">
-                    <label><i class="fas fa-user"></i> Apellido (No editable)</label>
+                    <label>Apellido (No editable)</label>
                     <input type="text" id="c-apellido" readonly>
                     <span class="bloqueado-aviso"><i class="fas fa-lock"></i> Bloqueado por perfil</span>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label><i class="fas fa-id-card"></i> DNI (No editable)</label>
+                    <label>DNI (No editable)</label>
                     <input type="text" id="c-dni" readonly>
                     <span class="bloqueado-aviso"><i class="fas fa-lock"></i> Bloqueado por perfil</span>
                 </div>
                 <div class="form-group">
-                    <label><i class="fas fa-phone"></i> Número Celular *</label>
+                    <label>Número Celular *</label>
                     <input type="tel" id="c-telefono" placeholder="Ej: 3816569211">
                 </div>
             </div>
             <div class="form-group">
-                <label><i class="fas fa-envelope"></i> Correo Electrónico (No editable)</label>
+                <label>Correo Electrónico (No editable)</label>
                 <input type="email" id="c-email" readonly>
                 <span class="bloqueado-aviso"><i class="fas fa-lock"></i> Bloqueado por perfil</span>
             </div>
 
-            <!-- Bloque Desplegable Solo Para Envios -->
             <div id="campos-domicilio" style="display: none; margin-top: 24px; border-top: 2px dashed #F0E6DC; padding-top: 20px;">
                 <div class="form-row">
                     <div class="form-group">
-                        <label><i class="fas fa-map"></i> Provincia *</label>
+                        <label>Provincia *</label>
                         <select id="c-provincia">
                             <option value="">Seleccionar</option>
                             <option>Tucumán</option><option>Buenos Aires</option><option>CABA</option>
@@ -225,17 +197,17 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label><i class="fas fa-city"></i> Localidad *</label>
+                        <label>Localidad *</label>
                         <input type="text" id="c-localidad" placeholder="Ej: San Miguel de Tucumán">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label><i class="fas fa-mail-bulk"></i> Código Postal *</label>
+                        <label>Código Postal *</label>
                         <input type="text" id="c-cp" placeholder="Ej: 4000">
                     </div>
                     <div class="form-group">
-                        <label><i class="fas fa-road"></i> Dirección y Altura del Domicilio *</label>
+                        <label>Dirección y Altura del Domicilio *</label>
                         <input type="text" id="c-direccion" placeholder="Ej: Av. Alem 1067">
                     </div>
                 </div>
@@ -255,7 +227,6 @@
         let metodoEntrega = 'local';
         const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
 
-      // CARGAR DATOS INICIALES AL CARGAR LA PÁGINA (VERSIÓN AUTO-DETECTABLE)
         async function iniciarCheckout() {
             const token = localStorage.getItem('token');
             if (!token) {
@@ -263,24 +234,33 @@
                 return;
             }
 
-            // 1. Recuperar los datos del cliente logueado
             try {
+                // 1. Cargar datos del perfil
                 const resUser = await fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!resUser.ok) throw new Error();
                 const usuario = await resUser.json();
 
-                // Campos no editables se clavan de una
                 document.getElementById('c-nombre').value = usuario.nombre || '';
                 document.getElementById('c-apellido').value = usuario.apellido || '';
                 document.getElementById('c-dni').value = usuario.dni || '';
                 document.getElementById('c-email').value = usuario.email || '';
-                
-                // Campos editables
                 document.getElementById('c-telefono').value = usuario.telefono || '';
                 document.getElementById('c-provincia').value = usuario.provincia || '';
                 document.getElementById('c-localidad').value = usuario.localidad || '';
                 document.getElementById('c-cp').value = usuario.cp || '';
                 document.getElementById('c-direccion').value = usuario.direccion || '';
+
+                // 2. RECUPERAR EL CARRITO DIRECTAMENTE DESDE EL SERVIDOR (LA SOLUCIÓN DEFINITIVA)
+                const resCarrito = await fetch('/api/obtener-carrito', { headers: { 'Authorization': `Bearer ${token}` } });
+                const dataCarrito = await resCarrito.json();
+                
+                if (dataCarrito.success && dataCarrito.carrito && dataCarrito.carrito.length > 0) {
+                    listadoCarrito = dataCarrito.carrito;
+                } else {
+                    // Si el servidor no tiene nada, buscamos un respaldo en el localStorage local por las dudas
+                    const respaldo = localStorage.getItem('tienda_carrito') || localStorage.getItem('carrito');
+                    if (respaldo) listadoCarrito = JSON.parse(respaldo);
+                }
 
             } catch(e) {
                 localStorage.clear();
@@ -288,21 +268,6 @@
                 return;
             }
 
-            // 2. ESCANEO MULTI-VARIABLE DEL CARRITO (Busca cualquier coincidencia en el localStorage)
-            const datosCarrito = localStorage.getItem('tienda_carrito') || 
-                                 localStorage.getItem('carrito') || 
-                                 localStorage.getItem('bolsa') || 
-                                 localStorage.getItem('items');
-                                 
-            if (datosCarrito) {
-                try { 
-                    listadoCarrito = JSON.parse(datosCarrito); 
-                } catch(e) { 
-                    listadoCarrito = []; 
-                }
-            }
-
-            // Si a pesar del escaneo sigue vacío, mostramos el aviso
             if (!listadoCarrito || listadoCarrito.length === 0) {
                 document.getElementById('main-checkout').innerHTML = `
                     <div class="step-card" style="text-align:center; padding: 40px;">
@@ -319,17 +284,12 @@
 
         function cambiarMetodoEntrega(tipo) {
             metodoEntrega = tipo;
-            
             document.getElementById('delivery-local').classList.toggle('active', tipo === 'local');
             document.getElementById('delivery-transporte').classList.toggle('active', tipo === 'transporte');
             document.getElementById('delivery-uber').classList.toggle('active', tipo === 'uber');
 
             const camposDomicilio = document.getElementById('campos-domicilio');
-            if (tipo === 'local') {
-                camposDomicilio.style.display = 'none';
-            } else {
-                camposDomicilio.style.display = 'block';
-            }
+            camposDomicilio.style.display = tipo === 'local' ? 'none' : 'block';
         }
 
         function renderizarProductosFinales() {
@@ -363,12 +323,8 @@
                 return;
             }
 
-            let provincia = '';
-            let localidad = '';
-            let cp = '';
-            let direccion = '';
+            let provincia = ''; let localidad = ''; let cp = ''; let direccion = '';
 
-            // Si es para envío, validamos de forma estricta los casilleros geográficos
             if (metodoEntrega !== 'local') {
                 provincia = document.getElementById('c-provincia').value;
                 localidad = document.getElementById('c-localidad').value.trim();
@@ -390,29 +346,26 @@
                 tipoEntrega: metodoEntrega === 'local' ? 'local' : 'envio',
                 metodoEnvio: metodoEntrega === 'local' ? 'Retiro Sucursal' : (metodoEntrega === 'transporte' ? 'Transporte' : 'Uber Moto'),
                 total: listadoCarrito.reduce((s, i) => s + (i.precio * i.cant), 0),
-                cliente: {
-                    telefono: telefono,
-                    provincia: provincia,
-                    localidad: localidad,
-                    cp: cp,
-                    direccion: direccion
-                }
+                cliente: { telefono, provincia, localidad, cp, direccion }
             };
 
             try {
                 const token = localStorage.getItem('token');
                 const response = await fetch('/tienda/crear-pedido', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
+                    // Limpiamos también el carrito del servidor al comprar con éxito
+                    await fetch('/api/guardar-carrito', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ carrito: [] })
+                    });
                     localStorage.removeItem('tienda_carrito'); 
                     mostrarToast('✨ ¡Pedido confirmado con éxito!');
                     setTimeout(() => window.location.href = '/tienda', 2500);
