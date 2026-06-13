@@ -909,51 +909,73 @@ app.post('/admin/buscar-clientes', adminMiddleware(), async (req, res) => {
     res.json({ lista: clientes });
 });
 
-// ENDPOINT CORREGIDO PARA ELIMINAR CLIENTE EN ADMIN
+// RECONSTRUCCIÓN DEFINITIVA Y REFORZADA: ELIMINAR CLIENTE
 app.post('/admin/eliminar-cliente', async (req, res) => {
     try {
         const { id, adminPassword } = req.body;
-        if (!id || !adminPassword) return res.status(400).json({ error: 'Faltan datos obligatorios (ID o Contraseña)' });
+        
+        // Verificación estricta de datos entrantes
+        if (!id) return res.status(400).json({ error: 'Falta el ID del cliente a eliminar.' });
+        if (!adminPassword || !adminPassword.trim()) {
+            return res.status(400).json({ error: 'La contraseña de administrador es obligatoria.' });
+        }
 
+        // 1. Extraer y verificar el token de seguridad del administrador
         const authHeader = req.headers.authorization;
         const token = authHeader && authHeader.split(' ')[1];
-        if (!token) return res.status(401).json({ error: 'No autorizado: Falta el token de acceso' });
+        if (!token) return res.status(401).json({ error: 'No autorizado: Falta el token de acceso.' });
 
         let adminDecoded;
         try {
             adminDecoded = jwt.verify(token, JWT_SECRET);
         } catch(err) {
-            return res.status(401).json({ error: 'Sesión de administración inválida o expirada' });
+            return res.status(401).json({ error: 'Sesión de administración vencida. Por favor, refrescá la página.' });
         }
 
+        // 2. Buscar las credenciales del administrador logueado
         const adminUser = adminDecoded.usuario || adminDecoded.nombre; 
         const adminPerfil = (await pool.query("SELECT * FROM perfiles WHERE usuario = $1 AND activo = 1", [adminUser])).rows[0];
         
-        if (!adminPerfil) {
-            const adminPorId = (await pool.query("SELECT * FROM perfiles WHERE id = $1 AND activo = 1", [adminDecoded.id])).rows[0];
-            if (!adminPorId) return res.status(404).json({ error: 'Perfil de administrador no encontrado en el sistema' });
-            adminDecoded.password = adminPorId.password;
-            adminDecoded.realNombre = adminPorId.nombre;
+        let passwordHashBD = '';
+        let nombreAdminLog = '';
+
+        if (adminPerfil) {
+            passwordHashBD = adminPerfil.password;
+            nombreAdminLog = adminPerfil.nombre;
         } else {
-            adminDecoded.password = adminPerfil.password;
-            adminDecoded.realNombre = adminPerfil.nombre;
+            // Auxiliar por si el token se generó con el ID numérico
+            const adminPorId = (await pool.query("SELECT * FROM perfiles WHERE id = $1 AND activo = 1", [adminDecoded.id])).rows[0];
+            if (!adminPorId) return res.status(404).json({ error: 'Tu perfil de administrador no fue encontrado.' });
+            passwordHashBD = adminPorId.password;
+            nombreAdminLog = adminPorId.nombre;
         }
 
-        const passwordCorrecta = await bcrypt.compare(adminPassword, adminDecoded.password);
+        // 3. Validar la contraseña ingresada en el prompt usando bcrypt
+        const passwordCorrecta = await bcrypt.compare(adminPassword.trim(), passwordHashBD);
         if (!passwordCorrecta) {
-            return res.status(401).json({ error: 'Contraseña de administrador incorrecta. Operación denegada.' });
+            return res.status(401).json({ error: 'Contraseña de administrador incorrecta. Acceso denegada.' });
         }
 
-        const cliente = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
-        if (!cliente) return res.status(404).json({ error: 'El cliente seleccionado ya no existe en la base de datos' });
+        // 4. Verificar existencia del cliente antes de ejecutar el DELETE
+        const clienteCheck = await pool.query('SELECT email FROM usuarios WHERE id = $1', [id]);
+        if (clienteCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'El cliente seleccionado no existe o ya fue eliminado.' });
+        }
+        const emailCliente = clienteCheck.rows[0].email;
 
-        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+        // 5. EJECUCIÓN DEL DELETE DEFINITIVO
+        const resultadoDelete = await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
         
-        await logActividad(adminDecoded.realNombre, 'ELIMINAR_CLIENTE', `Borró al cliente: ${cliente.email} (Verificación exitosa)`, req);
-        return res.json({ success: true });
+        if (resultadoDelete.rowCount > 0) {
+            // Guardamos la acción en la auditoría del sistema
+            await logActividad(nombreAdminLog, 'ELIMINAR_CLIENTE', `Borró exitosamente al cliente: ${emailCliente}`, req);
+            return res.json({ success: true, message: 'Cliente eliminado correctamente.' });
+        } else {
+            return res.status(500).json({ error: 'No se pudo realizar la eliminación en la base de datos.' });
+        }
 
     } catch (e) {
-        console.error('❌ Error crítico en endpoint eliminar-cliente:', e.message);
+        console.error('❌ Error crítico en reconstrucción eliminar-cliente:', e.message);
         return res.status(500).json({ error: 'Error interno del servidor: ' + e.message });
     }
 });
