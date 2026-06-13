@@ -8,14 +8,14 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #8B5E3C;
-            --primary-light: #A0714F;
-            --primary-dark: #6B4423;
+            --primary: #4A3728;
+            --primary-light: #6B5344;
+            --primary-dark: #3E2A1E;
             --secondary: #D4A574;
-            --bg-light: #FDF8F4;
+            --bg-light: #FEFAE0;
             --bg-white: #FFFFFF;
-            --text-dark: #3E2A1E;
-            --text-light: #7B6B5A;
+            --text-dark: #4A3728;
+            --text-light: #8B7355;
             --success: #4CAF50;
             --danger: #F44336;
             --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
@@ -93,7 +93,7 @@
             cursor: pointer; margin-top: 12px; transition: all 0.3s;
             display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-        .btn-confirm:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-confirm:hover { background: var(--primary-light); transform: translateY(-2px); }
         .btn-confirm:disabled { background: #CCC; cursor: not-allowed; transform: none; }
         
         .toast {
@@ -186,14 +186,30 @@
                         <label>Provincia *</label>
                         <select id="c-provincia">
                             <option value="">Seleccionar</option>
-                            <option>Tucumán</option><option>Buenos Aires</option><option>CABA</option>
-                            <option>Catamarca</option><option>Chaco</option><option>Chubut</option>
-                            <option>Córdoba</option><option>Corrientes</option><option>Entre Ríos</option>
-                            <option>Formosa</option><option>Jujuy</option><option>La Pampa</option>
-                            <option>La Rioja</option><option>Mendoza</option><option>Misiones</option>
-                            <option>Neuquén</option><option>Río Negro</option><option>Salta</option>
-                            <option>San Juan</option><option>San Luis</option><option>Santa Cruz</option>
-                            <option>Santa Fe</option><option>Santiago del Estero</option><option>Tierra del Fuego</option>
+                            <option value="Tucumán">Tucumán</option>
+                            <option value="Buenos Aires">Buenos Aires</option>
+                            <option value="CABA">CABA</option>
+                            <option value="Catamarca">Catamarca</option>
+                            <option value="Chaco">Chaco</option>
+                            <option value="Chubut">Chubut</option>
+                            <option value="Córdoba">Córdoba</option>
+                            <option value="Corrientes">Corrientes</option>
+                            <option value="Entre Ríos">Entre Ríos</option>
+                            <option value="Formosa">Formosa</option>
+                            <option value="Jujuy">Jujuy</option>
+                            <option value="La Pampa">La Pampa</option>
+                            <option value="La Rioja">La Rioja</option>
+                            <option value="Mendoza">Mendoza</option>
+                            <option value="Misiones">Misiones</option>
+                            <option value="Neuquén">Neuquén</option>
+                            <option value="Río Negro">Río Negro</option>
+                            <option value="Salta">Salta</option>
+                            <option value="San Juan">San Juan</option>
+                            <option value="San Luis">San Luis</option>
+                            <option value="Santa Cruz">Santa Cruz</option>
+                            <option value="Santa Fe">Santa Fe</option>
+                            <option value="Santiago del Estero">Santiago del Estero</option>
+                            <option value="Tierra del Fuego">Tierra del Fuego</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -235,39 +251,43 @@
             }
 
             try {
-                // 1. Cargar datos del perfil
+                // 1. Cargar datos del perfil del usuario de forma segura
                 const resUser = await fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!resUser.ok) throw new Error();
                 const usuario = await resUser.json();
 
+                // Seteamos los casilleros fijos de texto
                 document.getElementById('c-nombre').value = usuario.nombre || '';
                 document.getElementById('c-apellido').value = usuario.apellido || '';
                 document.getElementById('c-dni').value = usuario.dni || '';
                 document.getElementById('c-email').value = usuario.email || '';
                 document.getElementById('c-telefono').value = usuario.telefono || '';
+                
+                // Mapeamos los campos geográficos de respaldo
                 document.getElementById('c-provincia').value = usuario.provincia || '';
                 document.getElementById('c-localidad').value = usuario.localidad || '';
                 document.getElementById('c-cp').value = usuario.cp || '';
                 document.getElementById('c-direccion').value = usuario.direccion || '';
 
-                // 2. RECUPERAR EL CARRITO DIRECTAMENTE DESDE EL SERVIDOR (LA SOLUCIÓN DEFINITIVA)
+                // 2. Traer la bolsa real directo desde la base de datos PostgreSQL
                 const resCarrito = await fetch('/api/obtener-carrito', { headers: { 'Authorization': `Bearer ${token}` } });
                 const dataCarrito = await resCarrito.json();
                 
                 if (dataCarrito.success && dataCarrito.carrito && dataCarrito.carrito.length > 0) {
                     listadoCarrito = dataCarrito.carrito;
                 } else {
-                    // Si el servidor no tiene nada, buscamos un respaldo en el localStorage local por las dudas
                     const respaldo = localStorage.getItem('tienda_carrito') || localStorage.getItem('carrito');
                     if (respaldo) listadoCarrito = JSON.parse(respaldo);
                 }
 
             } catch(e) {
+                console.error("Error al arrancar componentes:", e);
                 localStorage.clear();
                 window.location.href = '/login';
                 return;
             }
 
+            // Validamos si efectivamente hay prendas para listar
             if (!listadoCarrito || listadoCarrito.length === 0) {
                 document.getElementById('main-checkout').innerHTML = `
                     <div class="step-card" style="text-align:center; padding: 40px;">
@@ -360,7 +380,6 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Limpiamos también el carrito del servidor al comprar con éxito
                     await fetch('/api/guardar-carrito', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
