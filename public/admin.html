@@ -1505,31 +1505,65 @@ async function leerNotif(id){await safeFetch('/notificaciones/leer',{method:'POS
 async function marcarTodasLeidas(){await safeFetch('/notificaciones/leer-todas',{method:'POST'});cargarNotificaciones();}
 async function cargarLogs(){const filtro=document.getElementById('logs-filtro')?.value||'';try{const d=await safeFetch('/logs/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filtro})});const t=document.getElementById('logs-body');if(t&&d.lista)t.innerHTML=d.lista.map(l=>`<tr><td>${l.fechaLocal||l.fecha}</td><td>${l.admin||'Sistema'}</td><td>${l.accion}</td><td>${l.detalles||''}</td></tr>`).join('');}catch(e){}}
 
-// ====== FUNCIÓN PARA TRAER Y MOSTRAR EL HISTORIAL DEL CLIENTE ======
 async function verHistorialClienteCompleto(clienteId, nombreCliente) {
-    try {
-        const response = await fetch('/admin/historial-cliente', {
+    async function ejecutarCargaHistorial(tokenAUsar) {
+        return fetch('/admin/historial-cliente', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                'Authorization': 'Bearer ' + tokenAUsar
             },
             body: JSON.stringify({ id: clienteId })
         });
+    }
 
-        const res = await response.json();
+    try {
+        let token = localStorage.getItem('token');
+        let response = await ejecutarCargaHistorial(token);
+        let res = await response.json();
+
+        // SI EL TOKEN EXPIRÓ EN SEGUNDO PLANO (Código 401)
+        if (response.status === 401 || (res.error && res.error.includes("expirada"))) {
+            console.log("🔄 Token de historial vencido. Solicitando renovación de sesión...");
+            
+            const adminPassword = prompt(`🔐 Tu sesión expiró por seguridad.\nPara ver el historial de "${nombreCliente}", ingresá tu contraseña de Administrador:`);
+            if (adminPassword === null) return;
+            if (!adminPassword.trim()) {
+                alert("❌ Operación cancelada: La contraseña es obligatoria.");
+                return;
+            }
+
+            // Intentamos re-autenticar de forma invisible contra el login nativo
+            const loginResp = await fetch('/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario: 'admin', password: adminPassword })
+            });
+            
+            const loginRes = await loginResp.json();
+            
+            if (loginRes.success && loginRes.token) {
+                // Guardamos el token nuevo fresco y reintentamos traer el historial de inmediato
+                localStorage.setItem('token', loginRes.token);
+                response = await ejecutarCargaHistorial(loginRes.token);
+                res = await response.json();
+            } else {
+                alert("🔐 Contraseña incorrecta o sesión inválida. Operación denegada.");
+                return;
+            }
+        }
+
         if (!res.success) {
             alert(res.error || 'Error al obtener el historial');
             return;
         }
 
-        // Armamos el reporte visual de compras para mostrar en pantalla
+        // Armamos el reporte visual de compras impecable si todo salió bien
         let historialHtml = `<div style="padding: 10px; font-family: 'Poppins', sans-serif;">
             <h4 style="font-family: 'Playfair Display', serif; color: #4A3728; margin-bottom: 4px; font-size: 20px;">Historial de Compras</h4>
             <p style="font-size: 13px; color: #8B7355; margin-bottom: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👤 ${nombreCliente}</p>
             <div style="border-bottom: 2px dashed #E0A899; margin-bottom: 16px;"></div>`;
 
-        // Procesamos los pedidos realizados en la tienda online
         historialHtml += `<h5 style="color: #D4A373; font-weight: 700; margin-top: 14px; margin-bottom: 8px;"><i class="fas fa-shopping-bag"></i> Pedidos en Tienda Web (${res.pedidos.length})</h5>`;
         if (res.pedidos.length === 0) {
             historialHtml += `<p style="font-size: 13px; color: #8B7355; font-style: italic; margin-bottom: 12px;">No registra pedidos web.</p>`;
@@ -1548,7 +1582,6 @@ async function verHistorialClienteCompleto(clienteId, nombreCliente) {
             });
         }
 
-        // Procesamos las facturas emitidas manualmente por mostrador en el local
         historialHtml += `<h5 style="color: #D4A373; font-weight: 700; margin-top: 20px; margin-bottom: 8px;"><i class="fas fa-cash-register"></i> Compras por Mostrador Local (${res.ventas.length})</h5>`;
         if (res.ventas.length === 0) {
             historialHtml += `<p style="font-size: 13px; color: #8B7355; font-style: italic;">No registra compras presenciales.</p>`;
@@ -1568,14 +1601,19 @@ async function verHistorialClienteCompleto(clienteId, nombreCliente) {
         }
         historialHtml += `</div>`;
 
-        abrirModalHistorialDinamico(historialHtml); 
+        // Llamamos al modal dinámico que maneja la interfaz flotante
+        if (typeof abrirModalHistorialDinamico === 'function') {
+            abrirModalHistorialDinamico(historialHtml);
+        } else {
+            alert("Error: No se encontró la función abrirModalHistorialDinamico en el script.");
+        }
 
     } catch (error) {
         console.error('Error:', error);
-        alert('Error de conexión con el servidor');
+        alert('Error de conexión con el servidor al procesar el historial');
     }
 }
-
+    
 async function eliminarCliente(clienteId, nombreCliente) {
     const seguro = confirm(`⚠️ ¿Estás seguro de que querés eliminar permanentemente a "${nombreCliente}"?`);
     if (!seguro) return;
