@@ -1614,46 +1614,56 @@ async function verHistorialClienteCompleto(clienteId, nombreCliente) {
     }
 }
     
+// RECONSTRUCCIÓN DEFINITIVA EN EL FRONTEND: ELIMINAR CLIENTE
 async function eliminarCliente(clienteId, nombreCliente) {
-    const seguro = confirm(`⚠️ ¿Estás seguro de que querés eliminar permanentemente a "${nombreCliente}"?`);
+    // Validamos que el ID realmente exista antes de molestar al usuario
+    if (!clienteId) {
+        alert("❌ Error: No se pudo detectar el ID único de este cliente.");
+        return;
+    }
+
+    const seguro = confirm(`⚠️ ¿Estás COMPLETAMENTE seguro de que querés eliminar permanentemente a "${nombreCliente}"?\nEsta acción borrará su cuenta de forma definitiva.`);
     if (!seguro) return;
 
-    const adminPassword = prompt(`🔐 Para confirmar la baja, ingresá tu contraseña de Administrador:`);
-    if (adminPassword === null) return; 
+    const adminPassword = prompt(`🔐 Confirmación de Seguridad:\nIngresá tu contraseña de Administrador para autorizar la baja:`);
+    if (adminPassword === null) return; // Si cancela el prompt
     if (!adminPassword.trim()) {
         alert("❌ Operación cancelada: La contraseña no puede estar vacía.");
         return;
     }
 
     try {
+        console.log(`Sending request to delete client ID: ${clienteId}`); // Debug en consola del navegador
+        
         const response = await fetch('/admin/eliminar-cliente', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                'Authorization': 'Bearer ' + localStorage.getItem('token') // Enviamos tu token actual
             },
-            body: JSON.stringify({ id: clienteId, adminPassword: adminPassword })
+            body: JSON.stringify({ 
+                id: clienteId, 
+                adminPassword: adminPassword.trim() 
+            })
         });
 
         const res = await response.json();
 
-        // CAPTURA EL ERROR DE EXPIRACIÓN EXPLICITAMENTE
-        if (response.status === 401 || res.error?.includes("expirada")) {
-            alert("🔐 Tu sesión de administrador expiró por seguridad. Por favor, refrescá la página o volvé a ingresar al panel para renovarla.");
-            return;
-        }
-
         if (res.success) {
             alert('✨ Cliente eliminado con éxito de la base de datos.');
+            
+            // Evaluamos cuál es tu función nativa para refrescar la grilla de clientes en pantalla
             if (typeof cargarClientes === 'function') cargarClientes();
             else if (typeof listarClientes === 'function') listarClientes();
-            else window.location.reload();
+            else if (typeof buscarClientes === 'function') buscarClientes();
+            else window.location.reload(); // Si no recordás el nombre, recargamos la vista limpio
         } else {
-            alert('❌ ' + res.error);
+            // Mostramos el mensaje exacto de error que devuelve el backend corregido
+            alert('❌ ' + (res.error || 'Ocurrió un error inesperado al intentar borrar.'));
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Error de comunicación con el servidor al intentar dar de baja');
+        console.error('Error en fetch al eliminar cliente:', error);
+        alert('❌ Error de red: No se pudo establecer conexión con el servidor.');
     }
 }
     
