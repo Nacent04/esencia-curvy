@@ -213,7 +213,7 @@ async function initDB() {
 const configInicial = {
     logo: '', empresa: JSON.stringify({ nombre: "ESENCIA CURVY", telefono: "", email: "esenciacurvy26@gmail.com", direccion: "" }),
     horarios: JSON.stringify({ lunesViernes: "9:00 - 13:00 y 17:00 - 20:00", sabados: "9:00 - 13:00", domingos: "Cerrado" }),
-    redes: JSON.stringify({ instagram: "", facebook: "", tiktok: "", whatsapp: "" }),
+    redes: JSON.stringify({ instagram: "", facebook: "", tiktok: "" }),
     pagos: JSON.stringify({ alias: "", cbu: "", banco: "", titular: "" }),
     mayorista: JSON.stringify({ habilitado: false, modo: "cantidad", valorCantidad: 3, valorMonto: 80000 }),
     tienda: JSON.stringify({ habilitada: true, titulo: "ESENCIA CURVY", mensajeBienvenida: "Calidad y confort", retiroLocal: true }),
@@ -321,9 +321,6 @@ app.use(passport.session());
 app.use('/uploads', express.static('uploads')); 
 app.use(express.static('public'));
 
-/* ==========================================================================
-   CONFIGURACIÓN REVISADA Y CORRECTA DE PASSPORT GOOGLE STRATEGY
-   ========================================================================== */
 passport.use(new GoogleStrategy({ 
     clientID: GOOGLE_CLIENT_ID, 
     clientSecret: GOOGLE_CLIENT_SECRET, 
@@ -333,47 +330,68 @@ passport.use(new GoogleStrategy({
         const email = profile.emails?.[0]?.value;
         if (!email) return done(new Error('No se recibió un email válido de Google'), null);
 
-        // 1. Buscamos si el usuario ya existe en la base de datos por su email o googleId
         let userResult = await pool.query('SELECT * FROM usuarios WHERE email = $1 OR "googleId" = $2', [email, profile.id]);
         
         if (userResult.rows.length > 0) {
-            let usuario = userResult.rows[0];
-            
-            // Si existía por mail pero no tenía el id de Google vinculado, se lo agregamos
-            if (!usuario.googleId) {
-                await pool.query('UPDATE usuarios SET "googleId" = $1, foto = $2 WHERE id = $3', [profile.id, profile.photos?.[0]?.value || '', usuario.id]);
-                usuario.googleId = profile.id;
-            }
-            return done(null, usuario);
+            return done(null, userResult.rows[0]);
         }
 
-        // 2. Si no existe, creamos el usuario NUEVO y le clavamos "datosCompletos" en 0
-        const nuevoId = 'usr_' + Math.random().toString(36).substr(2, 9);
-        const nombre = profile.name?.givenName || '';
-        const apellido = profile.name?.familyName || '';
-        const foto = profile.photos?.[0]?.value || '';
+        const usuarioTemporal = {
+            id: 'tmp_' + Math.random().toString(36).substr(2, 9),
+            nombre: profile.name?.givenName || '',
+            apellido: profile.name?.familyName || '',
+            email: email,
+            googleId: profile.id,
+            foto: profile.photos?.[0]?.value || '',
+            esNuevoGoogle: true
+        };
 
-        const insertResult = await pool.query(
-            'INSERT INTO usuarios (id, nombre, apellido, email, "googleId", foto, rol, "datosCompletos") VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [nuevoId, nombre, apellido, email, profile.id, foto, 'cliente', 0]
-        );
-
-        console.log('✨ Nuevo usuario registrado via Google:', email);
-        return done(null, insertResult.rows[0]);
-
+        return done(null, usuarioTemporal);
     } catch (error) {
-        console.error('❌ Error detallado en Google Strategy:', error);
         return done(error, null);
     }
 }));
 
-passport.serializeUser((user, done) => { done(null, user.id); });
+app.get('/auth/google/callback', 
+    passport.authenticate('google', { failureRedirect: '/login?error=google' }),
+    async (req, res) => {
+        try {
+            if (!req.user) return res.redirect('/login?error=nouser');
+            
+            if (!req.user.esNuevoGoogle) {
+                const token = jwt.sign({ id: req.user.id, email: req.user.email, nombre: req.user.nombre, rol: req.user.rol }, JWT_SECRET, { expiresIn: '7d' });
+                return res.send(`
+                    <!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
+                    <script>
+                        localStorage.setItem('token', '${token}');
+                        localStorage.setItem('usuario', JSON.stringify({id:'${req.user.id}',nombre:'${req.user.nombre}',email:'${req.user.email}'}));
+                        window.location.href = '/tienda';
+                    </script></body></html>`);
+            }
 
-passport.deserializeUser(async (id, done) => {
-    try {
-        const result = await pool.query('SELECT * FROM usuarios WHERE id = $1', [id]);
-        done(null, result.rows[0] || null);
-    } catch(e) { done(e, null); }
+            const params = new URLSearchParams({
+                google: 'true',
+                nombre: req.user.nombre,
+                apellido: req.user.apellido,
+                email: req.user.email,
+                googleId: req.user.googleId,
+                foto: req.user.foto
+            }).toString();
+
+            res.redirect(`/completar-datos?${params}`);
+        } catch(e) { 
+            console.error('❌ Error en callback Google:', e); 
+            res.redirect('/login?error=server'); 
+        }
+    }
+);
+
+passport.serializeUser((user, done) => { 
+    done(null, user); 
+});
+
+passport.deserializeUser((user, done) => {
+    done(null, user); 
 });
 
 const authMiddleware = (req, res, next) => { 
@@ -404,34 +422,6 @@ const generarPIN = () => Math.floor(1000 + Math.random() * 9000).toString();
 app.get('/', (req, res) => res.redirect('/tienda'));
 
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-app.get('/auth/google/callback', 
-    passport.authenticate('google', { failureRedirect: '/login?error=google' }),
-    async (req, res) => {
-        try {
-            console.log('✅ Usuario autenticado por Google:', req.user?.email);
-            if (!req.user) return res.redirect('/login?error=nouser');
-            
-            // Generamos el token de acceso
-            const token = jwt.sign({ id: req.user.id, email: req.user.email, nombre: req.user.nombre, rol: req.user.rol }, JWT_SECRET, { expiresIn: '7d' });
-            
-            // Verificamos si es la primera vez que entra o si le faltan registrar sus datos obligatorios
-            const result = await pool.query('SELECT "datosCompletos" FROM usuarios WHERE id = $1', [req.user.id]);
-            const datosCompletos = result.rows[0]?.datosCompletos ?? 0;
-
-            // Si datosCompletos es 0 o falso, lo mandamos directo a registrar sus datos en la web
-            const rutaRedireccion = (datosCompletos == 0) ? '/completar-datos' : '/tienda';
-
-            res.send(`
-                <!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirigiendo...</title>
-                <script>
-                    localStorage.setItem('token', '${token}');
-                    localStorage.setItem('usuario', JSON.stringify({id:'${req.user.id}',nombre:'${req.user.nombre||''}',apellido:'${req.user.apellido||''}',email:'${req.user.email}'}));
-                    window.location.href = '${rutaRedireccion}';
-                </script></head><body><p>Redirigiendo...</p></body></html>`);
-        } catch(e) { console.error('❌ Error en callback Google:', e); res.redirect('/login?error=server'); }
-    }
-);
 
 app.post('/admin/login', async (req, res) => {
     try {
@@ -505,6 +495,38 @@ app.post('/auth/registro', async (req, res) => {
         await logActividad('Sistema', 'REGISTRO_CLIENTE', `Nuevo cliente: ${email}`, req);
         res.json({ success: true, token: jwt.sign({ id, email, nombre, rol: 'cliente' }, JWT_SECRET, { expiresIn: '7d' }), usuario: { id, nombre, apellido, email } });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/auth/crear-cuenta-google', async (req, res) => {
+    try {
+        const { nombre, apellido, email, googleId, foto, dni, telefono, direccion, provincia, localidad, cp } = req.body;
+        
+        if (!nombre || !apellido || !email || !googleId || !dni || !telefono || !direccion || !provincia || !localidad || !cp) {
+            return res.status(400).json({ error: 'Todos los campos del formulario son obligatorios para crear tu cuenta' });
+        }
+
+        const existe = await pool.query('SELECT id FROM usuarios WHERE email = $1', [email]);
+        if (existe.rows.length > 0) return res.status(400).json({ error: 'Este correo ya se encuentra registrado' });
+
+        const nuevoId = 'USR-' + Date.now();
+
+        await pool.query(
+            'INSERT INTO usuarios (id, nombre, apellido, email, dni, telefono, direccion, provincia, localidad, cp, "googleId", foto, rol, "datosCompletos") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,\'cliente\',1)',
+            [nuevoId, nombre, apellido, email, dni, telefono, direccion, provincia, localidad, cp, googleId, foto]
+        );
+
+        const token = jwt.sign({ id: nuevoId, email: email, nombre: nombre, rol: 'cliente' }, JWT_SECRET, { expiresIn: '7d' });
+        await logActividad('Sistema', 'REGISTRO_GOOGLE_COMPLETO', `Cuenta creada con éxito: ${email}`, req);
+
+        res.json({ 
+            success: true, 
+            token, 
+            usuario: { id: nuevoId, nombre: nombre, apellido: apellido, email: email } 
+        });
+    } catch(e) {
+        console.error('❌ Error al crear cuenta final de Google:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/auth/login', async (req, res) => {
@@ -770,7 +792,7 @@ app.post('/tienda/confirmar-pedido', async (req, res) => {
         await pool.query('UPDATE pedidos SET estado=$1,pin=$2,"ventaId"=$3 WHERE id=$4', ['confirmado', pin, vid, p.id]);
         await logActividad('Admin', 'CONFIRMAR_PEDIDO', `Pedido ${p.id}`, req);
         const cliente = JSON.parse(p.cliente||'{}');
-        if (cliente.email) await enviarEmail(cliente.email, `Pedido #${p.id} confirmed`, `<h1>ESENCIA CURVY</h1><h2>¡Pedido confirmado!</h2><p>Tu PIN de retiro: <strong>${pin}</strong></p><p>Total: ${fmt.format(p.total)}</p>`);
+        if (cliente.email) await enviarEmail(cliente.email, `Pedido #${p.id} confirmado`, `<h1>ESENCIA CURVY</h1><h2>¡Pedido confirmado!</h2><p>Tu PIN de retiro: <strong>${pin}</strong></p><p>Total: ${fmt.format(p.total)}</p>`);
         res.json({ success: true, ventaId: vid, pin });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -829,11 +851,9 @@ app.post('/admin/estadisticas-avanzadas', adminMiddleware('dashboard'), async (r
         const hoy = new Date().toLocaleDateString('es-AR');
         const mes = new Date().toLocaleDateString('es-AR').substring(3);
         
-        // Calcular total de ventas de hoy
         const ventasHoyQuery = await pool.query("SELECT COALESCE(SUM(total),0) as total FROM ventas WHERE fecha LIKE $1", [`%${hoy}%`]);
         const ventasHoy = parseFloat(ventasHoyQuery.rows[0].total);
 
-        // Calcular total de ventas del mes y segmentación de métodos de pago
         const ventasMesQuery = await pool.query("SELECT * FROM ventas WHERE fecha LIKE $1", [`%${mes}%`]);
         const ventasMesRows = ventasMesQuery.rows;
         
@@ -853,7 +873,6 @@ app.post('/admin/estadisticas-avanzadas', adminMiddleware('dashboard'), async (r
         const totalProductos = (await pool.query('SELECT COUNT(*) as c FROM productos')).rows[0].c;
         const pedidosPendientes = (await pool.query("SELECT COUNT(*) as c FROM pedidos WHERE estado IN ('pendiente','confirmado','abonado')")).rows[0].c;
         
-        // Calcular productos agotados reales
         const prodAgotadosQuery = await pool.query(`
             SELECT COUNT(*) as c FROM productos p 
             WHERE NOT EXISTS (
@@ -896,53 +915,8 @@ app.post('/admin/eliminar-cliente', async (req, res) => {
         const { id, adminPassword } = req.body;
         if (!id || !adminPassword) return res.status(400).json({ error: 'Faltan datos obligatorios (ID o Contraseña)' });
 
-        // 1. Extraemos el token del encabezado de forma manual y segura para evitar rebotes
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        if (!token) return res.status(401).json({ error: 'No autorizado: Falta token de administrador' });
-
-        let adminDecoded;
-        try {
-            adminDecoded = jwt.verify(token, JWT_SECRET);
-        } catch(err) {
-            return res.status(401).json({ error: 'Sesión de administración inválida o expirada' });
-        }
-
-        // 2. Buscamos la contraseña del administrador en la tabla de perfiles usando el usuario del token
-        const adminPerfil = (await pool.query("SELECT * FROM perfiles WHERE usuario = $1 AND activo = 1", [adminDecoded.usuario])).rows[0];
-        if (!adminPerfil) return res.status(404).json({ error: 'Perfil de administrador no encontrado o inactivo' });
-
-        // 3. Verificamos la contraseña ingresada en el prompt con la de la base de datos
-        const passwordCorrecta = await bcrypt.compare(adminPassword, adminPerfil.password);
-        if (!passwordCorrecta) {
-            return res.status(401).json({ error: 'Contraseña de administrador incorrecta. Operación denegada.' });
-        }
-
-        // 4. Si todo está perfecto, procedemos a buscar al cliente y borrarlo
-        const cliente = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
-        if (!cliente) return res.status(404).json({ error: 'El cliente que intentás borrar no existe' });
-
-        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
-        
-        await logActividad(adminPerfil.nombre, 'ELIMINAR_CLIENTE', `Borró al cliente: ${cliente.email} (Clave verificada en panel)`, req);
-        res.json({ success: true });
-
-    } catch (e) {
-        console.error('❌ Error crítico al eliminar cliente:', e.message);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-
-// ENDPOINT BLINDADO Y DEFINITIVO PARA EL HISTORIAL DE CLIENTES
-app.post('/admin/historial-cliente', async (req, res) => {
-    try {
-        const { id } = req.body;
-        if (!id) return res.status(400).json({ error: 'ID de cliente requerido' });
-
-        // 1. Extraemos el token del encabezado de forma segura
         const authHeader = req.headers.authorization;
         const token = authHeader && authHeader.split(' ')[1];
-        
         if (!token) return res.status(401).json({ error: 'No autorizado: Falta el token de acceso' });
 
         let adminDecoded;
@@ -952,15 +926,61 @@ app.post('/admin/historial-cliente', async (req, res) => {
             return res.status(401).json({ error: 'Sesión de administración inválida o expirada' });
         }
 
-        // 2. Verificación secundaria: Validamos que el perfil del admin esté activo en el sistema
+        const adminUser = adminDecoded.usuario || adminDecoded.nombre; 
+        const adminPerfil = (await pool.query("SELECT * FROM perfiles WHERE usuario = $1 AND activo = 1", [adminUser])).rows[0];
+        
+        if (!adminPerfil) {
+            const adminPorId = (await pool.query("SELECT * FROM perfiles WHERE id = $1 AND activo = 1", [adminDecoded.id])).rows[0];
+            if (!adminPorId) return res.status(404).json({ error: 'Perfil de administrador no encontrado en el sistema' });
+            adminDecoded.password = adminPorId.password;
+            adminDecoded.realNombre = adminPorId.nombre;
+        } else {
+            adminDecoded.password = adminPerfil.password;
+            adminDecoded.realNombre = adminPerfil.nombre;
+        }
+
+        const passwordCorrecta = await bcrypt.compare(adminPassword, adminDecoded.password);
+        if (!passwordCorrecta) {
+            return res.status(401).json({ error: 'Contraseña de administrador incorrecta. Operación denegada.' });
+        }
+
+        const cliente = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
+        if (!cliente) return res.status(404).json({ error: 'El cliente seleccionado ya no existe en la base de datos' });
+
+        await pool.query('DELETE FROM usuarios WHERE id = $1', [id]);
+        
+        await logActividad(adminDecoded.realNombre, 'ELIMINAR_CLIENTE', `Borró al cliente: ${cliente.email} (Verificación exitosa)`, req);
+        return res.json({ success: true });
+
+    } catch (e) {
+        console.error('❌ Error crítico en endpoint eliminar-cliente:', e.message);
+        return res.status(500).json({ error: 'Error interno del servidor: ' + e.message });
+    }
+});
+
+// ENDPOINT BLINDADO Y DEFINITIVO PARA EL HISTORIAL DE CLIENTES
+app.post('/admin/historial-cliente', async (req, res) => {
+    try {
+        const { id } = req.body;
+        if (!id) return res.status(400).json({ error: 'ID de cliente requerido' });
+
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) return res.status(401).json({ error: 'No autorizado: Falta el token de acceso' });
+
+        let adminDecoded;
+        try {
+            adminDecoded = jwt.verify(token, JWT_SECRET);
+        } catch(err) {
+            return res.status(401).json({ error: 'Sesión de administración inválida o expirada' });
+        }
+
         const adminUser = adminDecoded.usuario || adminDecoded.nombre;
         const adminPerfil = (await pool.query("SELECT id FROM perfiles WHERE (usuario = $1 OR id = $2) AND activo = 1", [adminUser, adminDecoded.id])).rows[0];
         if (!adminPerfil) return res.status(404).json({ error: 'Perfil de administrador no encontrado o inactivo' });
 
-        // 3. Traemos los pedidos web que hizo este usuario desde la tienda
         const pedidos = (await pool.query('SELECT * FROM pedidos WHERE "usuarioId" = $1 ORDER BY "fechaTimestamp" DESC', [id])).rows;
         
-        // 4. Traemos las ventas de mostrador donde su email coincida dentro del campo JSON 'cliente'
         const clienteData = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
         let ventas = [];
         
@@ -1108,7 +1128,7 @@ app.post('/admin/agregar-gasto', adminMiddleware('ventas'), async (req, res) => 
         const ahora = new Date();
         const d = ahora.getDate();
         const m = ahora.getMonth() + 1;
-        const y = ahora.getFullYear();
+        const y = grandma = ahora.getFullYear();
         const f1 = `${d}/${m}/${y}`;
         const f2 = `${d.toString().padStart(2,'0')}/${m.toString().padStart(2,'0')}/${y}`;
 
@@ -1295,7 +1315,6 @@ app.post('/admin/dashboard/data', adminMiddleware('dashboard'), async (req, res)
         const efectivoPorDia = [0, 0, 0, 0, 0, 0, 0];
         const transferenciaPorDia = [0, 0, 0, 0, 0, 0, 0];
         
-        const d_actual = new Date();
         ventasQuery.rows.forEach(v => {
             const ts = Number(v.fechaTimestamp);
             if (!isNaN(ts)) {
@@ -1389,7 +1408,7 @@ app.post('/admin/backup/crear-total', adminMiddleware(), async (req, res) => {
         Object.values(datos).forEach(val => { if (Array.isArray(val)) stats.totalRegistros += val.length; });
         datos.metadata.stats = stats;
         fs.writeFileSync(path.join(backupPath, 'data.json'), JSON.stringify(datos, null, 2));
-        const imagenesDir = path.join(backupPath, 'imagenes'); fs.mkdirSync(imagenesDir, { recursive: true });
+        const imagesDir = path.join(backupPath, 'imagenes'); fs.mkdirSync(imagesDir, { recursive: true });
         const uploadsDir = path.join(__dirname, 'uploads');
         if (fs.existsSync(uploadsDir)) {
             const copiarRecursivo = (src, dest) => {
@@ -1400,7 +1419,7 @@ app.post('/admin/backup/crear-total', adminMiddleware(), async (req, res) => {
                     else { fs.copyFileSync(srcPath, destPath); stats.imagenes++; }
                 }
             };
-            copiarRecursivo(uploadsDir, imagenesDir);
+            copiarRecursivo(uploadsDir, imagesDir);
         }
         datos.metadata.stats = stats;
         fs.writeFileSync(path.join(backupPath, 'data.json'), JSON.stringify(datos, null, 2));
