@@ -80,7 +80,8 @@ async function initDB() {
                 provincia TEXT DEFAULT '',
                 localidad TEXT DEFAULT '',
                 cp TEXT DEFAULT '',
-                "datosCompletos" INTEGER DEFAULT 0
+                "datosCompletos" INTEGER DEFAULT 0,
+                "carritoGuardado" TEXT DEFAULT '[]'
             );
             CREATE TABLE IF NOT EXISTS ventas (
                 id TEXT PRIMARY KEY,
@@ -200,30 +201,6 @@ async function initDB() {
         client.release();
     }
 }
-
-(async () => {
-    try {
-        await pool.query("ALTER TABLE variantes ADD COLUMN IF NOT EXISTS foto_mobile TEXT DEFAULT ''");
-        console.log('✅ Columna foto_mobile verificada');
-    } catch(e) {
-        console.log('⚠️ Error:', e.message);
-    }
-})();
-
-const configInicial = {
-    logo: '', empresa: JSON.stringify({ nombre: "ESENCIA CURVY", telefono: "", email: "esenciacurvy26@gmail.com", direccion: "" }),
-    horarios: JSON.stringify({ lunesViernes: "9:00 - 13:00 y 17:00 - 20:00", sabados: "9:00 - 13:00", domingos: "Cerrado" }),
-    redes: JSON.stringify({ instagram: "", facebook: "", tiktok: "" }),
-    pagos: JSON.stringify({ alias: "", cbu: "", banco: "", titular: "" }),
-    mayorista: JSON.stringify({ habilitado: false, modo: "cantidad", valorCantidad: 3, valorMonto: 80000 }),
-    tienda: JSON.stringify({ habilitada: true, titulo: "ESENCIA CURVY", mensajeBienvenida: "Calidad y confort", retiroLocal: true }),
-    diseno: JSON.stringify({ colorPrimario: "#4A3728", colorSecundario: "#D4A373", colorFondo: "#FEFAE0", colorTexto: "#4A3728" }),
-    registroObligatorio: 'true',
-    heroConfig: JSON.stringify({ titulo: "ESENCIA CURVY", subtitulo: "Moda curvy premium", badge: "✦ Colección Exclusiva" }),
-    seccionesDestacadas: JSON.stringify([{ id: "dest-1", titulo: "Novedades", tipo: "categoria", valor: "Vestidos", limite: 4 }]),
-    plantilla: 'moderna',
-    icono: 'store'
-};
 
 async function initConfig() {
     for (const [k, v] of Object.entries(configInicial)) {
@@ -583,6 +560,48 @@ app.post('/auth/completar-datos', authMiddleware, async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ==========================================================================
+// ENDPOINTS PARA MANEJAR EL CARRITO PERSISTENTE DESDE LA BASE DE DATOS
+// ==========================================================================
+
+// 1. RUTA PARA GUARDAR EL CARRITO DE LA TIENDA EN POSTGRES
+app.post('/api/guardar-carrito', authMiddleware, async (req, res) => {
+    try {
+        const { carrito } = req.body;
+        
+        // Si viene un objeto o arreglo, lo transformamos a texto plano JSON para la BD
+        const carritoString = typeof carrito === 'string' ? carrito : JSON.stringify(carrito || []);
+        
+        // Impactamos directo sobre la nueva columna del usuario autenticado
+        await pool.query('UPDATE usuarios SET "carritoGuardado" = $1 WHERE id = $2', [carritoString, req.usuario.id]);
+        
+        return res.json({ success: true, message: 'Carrito sincronizado en el servidor.' });
+    } catch (e) {
+        console.error('❌ Error al guardar carrito en servidor:', e.message);
+        return res.status(500).json({ error: 'Error al sincronizar carrito: ' + e.message });
+    }
+});
+
+// 2. RUTA PARA QUE EL CHECKOUT LEA EL CARRITO DESDE POSTGRES
+app.get('/api/obtener-carrito', authMiddleware, async (req, res) => {
+    try {
+        // Buscamos la columna del usuario logueado
+        const result = await pool.query('SELECT "carritoGuardado" FROM usuarios WHERE id = $1', [req.usuario.id]);
+        
+        // Si por alguna razón está en NULL o vacío, devolvemos un arreglo vacío de respaldo
+        const carritoTexto = result.rows[0]?.carritoGuardado || '[]';
+        
+        return res.json({ 
+            success: true, 
+            carrito: JSON.parse(carritoTexto) 
+        });
+    } catch (e) {
+        console.error('❌ Error al obtener carrito desde servidor:', e.message);
+        return res.status(500).json({ error: 'Error al recuperar carrito: ' + e.message });
+    }
+});
+
 
 app.post('/listar', async (req, res) => {
     const prods = (await pool.query('SELECT * FROM productos ORDER BY id DESC')).rows;
