@@ -933,16 +933,34 @@ app.post('/admin/eliminar-cliente', async (req, res) => {
 });
 
 
-// ENDPOINT PARA VER EL HISTORIAL DE COMPRAS Y PEDIDOS DEL CLIENTE
-app.post('/admin/historial-cliente', adminMiddleware('clientes'), async (req, res) => {
+// ENDPOINT BLINDADO Y DEFINITIVO PARA EL HISTORIAL DE CLIENTES
+app.post('/admin/historial-cliente', async (req, res) => {
     try {
         const { id } = req.body;
         if (!id) return res.status(400).json({ error: 'ID de cliente requerido' });
 
-        // 1. Traemos los pedidos web que hizo este usuario desde la tienda
+        // 1. Extraemos el token del encabezado de forma segura
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+        
+        if (!token) return res.status(401).json({ error: 'No autorizado: Falta el token de acceso' });
+
+        let adminDecoded;
+        try {
+            adminDecoded = jwt.verify(token, JWT_SECRET);
+        } catch(err) {
+            return res.status(401).json({ error: 'Sesión de administración inválida o expirada' });
+        }
+
+        // 2. Verificación secundaria: Validamos que el perfil del admin esté activo en el sistema
+        const adminUser = adminDecoded.usuario || adminDecoded.nombre;
+        const adminPerfil = (await pool.query("SELECT id FROM perfiles WHERE (usuario = $1 OR id = $2) AND activo = 1", [adminUser, adminDecoded.id])).rows[0];
+        if (!adminPerfil) return res.status(404).json({ error: 'Perfil de administrador no encontrado o inactivo' });
+
+        // 3. Traemos los pedidos web que hizo este usuario desde la tienda
         const pedidos = (await pool.query('SELECT * FROM pedidos WHERE "usuarioId" = $1 ORDER BY "fechaTimestamp" DESC', [id])).rows;
         
-        // 2. Traemos las ventas de mostrador donde su email coincida adentro del campo JSON 'cliente'
+        // 4. Traemos las ventas de mostrador donde su email coincida dentro del campo JSON 'cliente'
         const clienteData = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
         let ventas = [];
         
@@ -951,15 +969,15 @@ app.post('/admin/historial-cliente', adminMiddleware('clientes'), async (req, re
             ventas = ventasQuery.rows;
         }
 
-        // Formateamos los datos para que el panel de administración los renderice perfectamente
-        res.json({
+        return res.json({
             success: true,
             pedidos: pedidos.map(p => ({ ...p, items: JSON.parse(p.items || '[]'), cliente: JSON.parse(p.cliente || '{}') })),
             ventas: ventas.map(v => ({ ...v, items: JSON.parse(v.items || '[]'), cliente: JSON.parse(v.cliente || '{}') }))
         });
+
     } catch (e) {
-        console.error('❌ Error al traer historial del cliente:', e.message);
-        res.status(500).json({ error: e.message });
+        console.error('❌ Error crítico al traer historial del cliente:', e.message);
+        return res.status(500).json({ error: 'Error interno del servidor: ' + e.message });
     }
 });
 
