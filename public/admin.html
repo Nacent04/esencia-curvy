@@ -1576,14 +1576,12 @@ async function verHistorialClienteCompleto(clienteId, nombreCliente) {
     }
 }
 
-// ====== FUNCIÓN PARA ELIMINAR EL CLIENTE CON CLAVE DE ADMIN ======
 async function eliminarCliente(clienteId, nombreCliente) {
     const seguro = confirm(`⚠️ ¿Estás seguro de que querés eliminar permanentemente a "${nombreCliente}"?`);
     if (!seguro) return;
 
-    // Candado de seguridad: Pedimos la clave de administrador
     const adminPassword = prompt(`🔐 Para eliminar a este cliente, por favor ingresá tu contraseña de Administrador:`);
-    if (adminPassword === null) return; // Si cancela, no hace nada
+    if (adminPassword === null) return; 
     if (!adminPassword.trim()) {
         alert("❌ Operación cancelada: La contraseña no puede estar vacía.");
         return;
@@ -1594,10 +1592,18 @@ async function eliminarCliente(clienteId, nombreCliente) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                'Authorization': 'Bearer ' + localStorage.getItem('token') // Aquí se envía el token
             },
-            body: JSON.stringify({ id: clienteId, adminPassword: adminPassword }) // Mandamos la clave al servidor
+            body: JSON.stringify({ id: clienteId, adminPassword: adminPassword })
         });
+
+        // CONTROL DE SEGURIDAD EXPLICITO: Si el token venció (Error 401)
+        if (response.status === 401) {
+            alert("🔐 Tu sesión de administrador expiró por seguridad. Por favor, volvé a iniciar sesión.");
+            localStorage.removeItem('token'); // Limpiamos el token viejo roto
+            window.location.href = '/login';   // Te mandamos a loguear de nuevo
+            return;
+        }
 
         const res = await response.json();
         if (res.success) {
