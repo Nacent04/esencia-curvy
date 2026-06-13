@@ -11,7 +11,7 @@
             --primary: #4A3728;
             --primary-light: #6B5344;
             --primary-dark: #3E2A1E;
-            --secondary: #D4A574;
+            --secondary: #D4A373;
             --bg-light: #FEFAE0;
             --bg-white: #FFFFFF;
             --text-dark: #4A3728;
@@ -55,19 +55,21 @@
         .summary-list { margin-bottom: 16px; }
         .summary-item {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 12px 0; border-bottom: 1px solid #F0E6DC; font-size: 14px;
+            padding: 12px 0; border-bottom: 1px solid #F0E6DC; font-size: 14px; gap: 16px;
         }
-        .summary-item-details h4 { font-weight: 600; color: var(--text-dark); }
+        .summary-item-left { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .summary-item-img { width: 50px; height: 60px; object-fit: cover; border-radius: 8px; background: #FAEDCD; border: 1px solid rgba(212,163,115,0.2); }
+        .summary-item-details h4 { font-weight: 600; color: var(--text-dark); font-size: 14px; }
         .summary-item-details p { font-size: 12px; color: var(--text-light); margin-top: 2px; }
-        .summary-item-price { font-weight: 700; color: var(--primary); }
+        .summary-item-price { font-weight: 700; color: var(--primary); font-size: 14px; white-space: nowrap; }
+        
         .total-box {
             background: #FDF8F4; padding: 16px; border-radius: 16px;
             display: flex; justify-content: space-between; align-items: center;
             font-size: 18px; font-weight: 800; color: var(--primary);
         }
 
-        .delivery-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-        @media (min-width: 500px) { .delivery-grid { grid-template-columns: 1fr 1fr 1fr; } }
+        .delivery-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
         .delivery-box {
             padding: 16px; border: 2px solid #F0E6DC; border-radius: 16px;
             text-align: center; cursor: pointer; transition: all 0.2s; background: white;
@@ -82,8 +84,9 @@
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-dark); }
         .form-group input, .form-group select {
-            width: 100%; padding: 14px; border: 2px solid #F0E6DC; border-radius: 14px; font-size: 14px;
+            width: 100%; padding: 14px; border: 2px solid #F0E6DC; border-radius: 14px; font-size: 14px; background: white;
         }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
         .form-group input[readonly] { background: #F8F2EC; color: var(--text-light); cursor: not-allowed; border-color: #E8DCD2; }
         .bloqueado-aviso { display: block; font-size: 10px; color: var(--primary); margin-top: 4px; font-weight: 500; }
         
@@ -116,6 +119,7 @@
     
     <div class="checkout-container" id="main-checkout">
         
+        <!-- PASO 1: CONFIRMAR CARRITO -->
         <div class="step-card">
             <h2><i class="fas fa-shopping-basket"></i> Paso 1: Confirmar Carrito</h2>
             <div class="summary-list" id="lista-productos-final">
@@ -127,6 +131,7 @@
             </div>
         </div>
 
+        <!-- PASO 2: MÉTODO DE ENTREGA -->
         <div class="step-card">
             <h2><i class="fas fa-truck"></i> Paso 2: Método de Entrega</h2>
             <div class="delivery-grid">
@@ -135,19 +140,25 @@
                     <h3>Retiro en Local</h3>
                     <p>Retirá sin cargo</p>
                 </div>
-                <div class="delivery-box" id="delivery-transporte" onclick="cambiarMetodoEntrega('transporte')">
-                    <i class="fas fa-truck-moving"></i>
-                    <h3>Envío Transporte</h3>
-                    <p>Via Cargo / Correo</p>
+                <div class="delivery-box" id="delivery-envio" onclick="cambiarMetodoEntrega('envio')">
+                    <i class="fas fa-shipping-fast"></i>
+                    <h3>Envío a Domicilio</h3>
+                    <p>Recibilo en tu dirección</p>
                 </div>
-                <div class="delivery-box" id="delivery-uber" onclick="cambiarMetodoEntrega('uber')">
-                    <i class="fas fa-motorcycle"></i>
-                    <h3>Uber Moto</h3>
-                    <p>En el transcurso del día</p>
+            </div>
+
+            <!-- Desplegable de medios de transporte cargados por Admin -->
+            <div id="wrapper-metodo-transporte" style="display: none; margin-top: 16px;">
+                <div class="form-group">
+                    <label><i class="fas fa-box-open"></i> Seleccioná el Medio de Envío *</label>
+                    <select id="selector-medio-envio">
+                        <option value="">Cargando empresas de transporte...</option>
+                    </select>
                 </div>
             </div>
         </div>
 
+        <!-- PASO 3: DATOS PERSONALES Y DOMICILIO -->
         <div class="step-card">
             <h2><i class="fas fa-user-edit"></i> Paso 3: Datos de Facturación y Entrega</h2>
             
@@ -241,7 +252,14 @@
     <script>
         let listadoCarrito = [];
         let metodoEntrega = 'local';
+        let empresasEnvioDisponibles = [];
         const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
+
+        function sanitizarUrlImagen(url) {
+            if (!url) return 'https://via.placeholder.com/60x70/FAEDCD/4A3728?text=Curvy';
+            if (url.startsWith('/uploads/') || url.startsWith('http')) return url;
+            return url;
+        }
 
         async function iniciarCheckout() {
             const token = localStorage.getItem('token');
@@ -251,25 +269,38 @@
             }
 
             try {
-                // 1. Cargar datos del perfil del usuario de forma segura
+                // 1. CARGA FLEXIBLE PARA MAPEAR COLUMNAS EN MINÚSCULAS DESDE LA BD
                 const resUser = await fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!resUser.ok) throw new Error();
                 const usuario = await resUser.json();
 
-                // Seteamos los casilleros fijos de texto
-                document.getElementById('c-nombre').value = usuario.nombre || '';
-                document.getElementById('c-apellido').value = usuario.apellido || '';
-                document.getElementById('c-dni').value = usuario.dni || '';
-                document.getElementById('c-email').value = usuario.email || '';
-                document.getElementById('c-telefono').value = usuario.telefono || '';
-                
-                // Mapeamos los campos geográficos de respaldo
-                document.getElementById('c-provincia').value = usuario.provincia || '';
-                document.getElementById('c-localidad').value = usuario.localidad || '';
-                document.getElementById('c-cp').value = usuario.cp || '';
-                document.getElementById('c-direccion').value = usuario.direccion || '';
+                let backupUser = {};
+                try { backupUser = JSON.parse(localStorage.getItem('usuario')) || {}; } catch(e){}
 
-                // 2. Traer la bolsa real directo desde la base de datos PostgreSQL
+                // Solución definitiva al autorrelleno: Lee minúsculas o mayúsculas indistintamente
+                document.getElementById('c-nombre').value = usuario.nombre || usuario.Nombre || backupUser.nombre || '';
+                document.getElementById('c-apellido').value = usuario.apellido || usuario.Apellido || backupUser.apellido || '';
+                document.getElementById('c-dni').value = usuario.dni || usuario.Dni || backupUser.dni || '';
+                document.getElementById('c-email').value = usuario.email || usuario.Email || backupUser.email || '';
+                document.getElementById('c-telefono').value = usuario.telefono || usuario.Telefono || backupUser.telefono || '';
+                
+                const provReal = usuario.provincia || usuario.Provincia || '';
+                if (provReal) {
+                    document.getElementById('c-provincia').value = provReal;
+                }
+                document.getElementById('c-localidad').value = usuario.localidad || usuario.Localidad || '';
+                document.getElementById('c-cp').value = usuario.cp || usuario.Cp || '';
+                document.getElementById('c-direccion').value = usuario.direccion || usuario.Direccion || '';
+
+                // 2. Cargar transportes dinámicos
+                const resTienda = await fetch('/tienda/listar-productos', { method: 'POST' });
+                if (resTienda.ok) {
+                    const dataTienda = await resTienda.json();
+                    empresasEnvioDisponibles = dataTienda.metodosEnvio || [];
+                    popularSelectorEnvios();
+                }
+
+                // 3. Obtener el carrito persistente
                 const resCarrito = await fetch('/api/obtener-carrito', { headers: { 'Authorization': `Bearer ${token}` } });
                 const dataCarrito = await resCarrito.json();
                 
@@ -281,13 +312,12 @@
                 }
 
             } catch(e) {
-                console.error("Error al arrancar componentes:", e);
+                console.error("Error al iniciar checkout:", e);
                 localStorage.clear();
                 window.location.href = '/login';
                 return;
             }
 
-            // Validamos si efectivamente hay prendas para listar
             if (!listadoCarrito || listadoCarrito.length === 0) {
                 document.getElementById('main-checkout').innerHTML = `
                     <div class="step-card" style="text-align:center; padding: 40px;">
@@ -302,14 +332,37 @@
             renderizarProductosFinales();
         }
 
+        function popularSelectorEnvios() {
+            const select = document.getElementById('selector-medio-envio');
+            if (!select) return;
+            
+            if (empresasEnvioDisponibles.length === 0) {
+                select.innerHTML = '<option value="Transporte General">Correo / Transporte a coordinar</option>';
+                return;
+            }
+
+            let html = '<option value="">-- Seleccioná la empresa de transporte --</option>';
+            empresasEnvioDisponibles.forEach(m => {
+                html += `<option value="${m}">${m}</option>`;
+            });
+            select.innerHTML = html;
+        }
+
         function cambiarMetodoEntrega(tipo) {
             metodoEntrega = tipo;
             document.getElementById('delivery-local').classList.toggle('active', tipo === 'local');
-            document.getElementById('delivery-transporte').classList.toggle('active', tipo === 'transporte');
-            document.getElementById('delivery-uber').classList.toggle('active', tipo === 'uber');
+            document.getElementById('delivery-envio').classList.toggle('active', tipo === 'envio');
 
             const camposDomicilio = document.getElementById('campos-domicilio');
-            camposDomicilio.style.display = tipo === 'local' ? 'none' : 'block';
+            const wrapperTransporte = document.getElementById('wrapper-metodo-transporte');
+
+            if (tipo === 'local') {
+                camposDomicilio.style.display = 'none';
+                wrapperTransporte.style.display = 'none';
+            } else {
+                camposDomicilio.style.display = 'block';
+                wrapperTransporte.style.display = 'block';
+            }
         }
 
         function renderizarProductosFinales() {
@@ -321,12 +374,16 @@
                 const subtotalItem = prod.precio * prod.cant;
                 totalAcumulado += subtotalItem;
                 const detalleTalle = prod.vNom || prod.talle || 'Único';
+                const fotoPrenda = sanitizarUrlImagen(prod.vFoto);
 
                 html += `
                     <div class="summary-item">
-                        <div class="summary-item-details">
-                            <h4>${prod.pNom}</h4>
-                            <p>Talle/Variante: <strong>${detalleTalle}</strong> &nbsp;|&nbsp; Cantidad: <strong>${prod.cant}</strong></p>
+                        <div class="summary-item-left">
+                            <img src="${fotoPrenda}" class="summary-item-img" onerror="this.src='https://via.placeholder.com/50x60/FAEDCD/4A3728?text=Moda'">
+                            <div class="summary-item-details">
+                                <h4>${prod.pNom}</h4>
+                                <p>Talle/Variante: <strong>${detalleTalle}</strong> &nbsp;|&nbsp; Cantidad: <strong>${prod.cant}</strong></p>
+                            </div>
                         </div>
                         <div class="summary-item-price">${fmt.format(subtotalItem)}</div>
                     </div>`;
@@ -344,15 +401,22 @@
             }
 
             let provincia = ''; let localidad = ''; let cp = ''; let direccion = '';
+            let transporteElegido = 'Retiro Sucursal';
 
             if (metodoEntrega !== 'local') {
+                transporteElegido = document.getElementById('selector-medio-envio').value;
+                if (!transporteElegido) {
+                    mostrarToast('❌ Elegí una empresa de transporte para despachar tu envío.', true);
+                    return;
+                }
+
                 provincia = document.getElementById('c-provincia').value;
                 localidad = document.getElementById('c-localidad').value.trim();
                 cp = document.getElementById('c-cp').value.trim();
                 direccion = document.getElementById('c-direccion').value.trim();
 
                 if (!provincia || !localidad || !cp || !direccion) {
-                    mostrarToast('❌ Completá todos los campos del domicilio para poder realizar el envío.', true);
+                    mostrarToast('❌ Completá todos los campos del domicilio para realizar el despacho.', true);
                     return;
                 }
             }
@@ -364,7 +428,7 @@
             const payload = {
                 carrito: listadoCarrito,
                 tipoEntrega: metodoEntrega === 'local' ? 'local' : 'envio',
-                metodoEnvio: metodoEntrega === 'local' ? 'Retiro Sucursal' : (metodoEntrega === 'transporte' ? 'Transporte' : 'Uber Moto'),
+                metodoEnvio: transporteElegido,
                 total: listadoCarrito.reduce((s, i) => s + (i.precio * i.cant), 0),
                 cliente: { telefono, provincia, localidad, cp, direccion }
             };
