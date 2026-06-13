@@ -1598,20 +1598,27 @@ async function eliminarCliente(clienteId, nombreCliente) {
         });
 
         const res = await response.json();
+
+        // CAPTURA EL ERROR DE EXPIRACIÓN EXPLICITAMENTE
+        if (response.status === 401 || res.error?.includes("expirada")) {
+            alert("🔐 Tu sesión de administrador expiró por seguridad. Por favor, refrescá la página o volvé a ingresar al panel para renovarla.");
+            return;
+        }
+
         if (res.success) {
             alert('✨ Cliente eliminado con éxito de la base de datos.');
             if (typeof cargarClientes === 'function') cargarClientes();
             else if (typeof listarClientes === 'function') listarClientes();
             else window.location.reload();
         } else {
-            alert('❌ ' + (res.error || 'No se pudo completar la operación'));
+            alert('❌ ' + res.error);
         }
     } catch (error) {
         console.error('Error:', error);
         alert('Error de comunicación con el servidor al intentar dar de baja');
     }
 }
-
+    
 // Función para inyectar y abrir la ventana flotante con diseño limpio
 function abrirModalHistorialDinamico(contenidoHtml) {
     let modalExistente = document.getElementById('modal-historial-dinamico');
