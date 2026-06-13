@@ -113,25 +113,51 @@
     </div>
     
     <script>
-        const token = new URLSearchParams(window.location.search).get('token');
-        if (!token) window.location.href = '/login';
+        // Extraemos los parámetros de la URL de forma global
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const esGoogle = urlParams.get('google');
         
-        async function cargarEmail() {
-            try {
-                const res = await fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
-                const data = await res.json();
-                if (data.email) {
-                    document.getElementById('email').value = data.email;
-                    localStorage.setItem('token', token);
-                    localStorage.setItem('usuario', JSON.stringify(data));
-                }
-            } catch(e) {}
+        // CANDADO REVISADO: Si no es de google y tampoco trae token tradicional, va al login
+        if (esGoogle !== 'true' && !token) {
+            window.location.href = '/login';
         }
-        cargarEmail();
         
+        // FUNCIÓN AUTOMÁTICA DE INICIALIZACIÓN
+        async function inicializarFormulario() {
+            // Caso A: Si viene derivado desde Google por primera vez
+            if (esGoogle === 'true') {
+                console.log("✨ Pre-cargando datos desde la sesión de Google...");
+                if (document.getElementById('nombre')) document.getElementById('nombre').value = urlParams.get('nombre') || '';
+                if (document.getElementById('apellido')) document.getElementById('apellido').value = urlParams.get('apellido') || '';
+                if (document.getElementById('email')) document.getElementById('email').value = urlParams.get('email') || '';
+                
+                // Hacemos que nombre y apellido sean readonly si vienen de Google (opcional, da más seguridad)
+                document.getElementById('nombre').readOnly = true;
+                document.getElementById('apellido').readOnly = true;
+            } 
+            // Caso B: El flujo tradicional (Usuario con cuenta que le faltaban datos)
+            else if (token) {
+                try {
+                    const res = await fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+                    const data = await res.json();
+                    if (data.email) {
+                        document.getElementById('email').value = data.email;
+                        localStorage.setItem('token', token);
+                        localStorage.setItem('usuario', JSON.stringify(data));
+                    }
+                } catch(e) {
+                    console.error("Error al cargar perfil tradicional:", e);
+                }
+            }
+        }
+        inicializarFormulario();
+        
+        // FUNCIÓN DE GUARDADO CENTRALIZADA
         async function completarDatos() {
             const nombre = document.getElementById('nombre').value.trim();
             const apellido = document.getElementById('apellido').value.trim();
+            const email = document.getElementById('email').value.trim();
             const dni = document.getElementById('dni').value.trim();
             const telefono = document.getElementById('telefono').value.trim();
             const direccion = document.getElementById('direccion').value.trim();
@@ -144,21 +170,52 @@
                 return;
             }
             
+            const datosFormulario = { nombre, apellido, email, dni, telefono, direccion, provincia, localidad, cp };
+            
             try {
-                const res = await fetch('/auth/completar-datos', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ nombre, apellido, dni, telefono, direccion, provincia, localidad, cp })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    mostrarToast('✅ Datos guardados');
-                    setTimeout(() => window.location.href = '/tienda', 1500);
-                } else {
-                    mostrarToast(data.error, true);
+                let res, data;
+                
+                // FLUJO DEFINITIVO 1: REGISTRO NUEVO DE GOOGLE (CREA EL USUARIO EN BD RECIÉN AHORA)
+                if (esGoogle === 'true') {
+                    datosFormulario.googleId = urlParams.get('googleId');
+                    datosFormulario.foto = urlParams.get('foto');
+                    
+                    res = await fetch('/auth/crear-cuenta-google', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datosFormulario)
+                    });
+                    
+                    data = await res.json();
+                    
+                    if (data.success) {
+                        mostrarToast('✅ Cuenta creada con éxito');
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('usuario', JSON.stringify(data.usuario));
+                        setTimeout(() => window.location.href = '/tienda', 1500);
+                    } else {
+                        mostrarToast(data.error, true);
+                    }
+                } 
+                // FLUJO 2: COMPLETAR DATOS TRADICIONAL (EL USUARIO YA EXISTÍA)
+                else {
+                    res = await fetch('/auth/completar-datos', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ nombre, apellido, dni, telefono, direccion, provincia, localidad, cp })
+                    });
+                    
+                    data = await res.json();
+                    
+                    if (data.success) {
+                        mostrarToast('✅ Datos guardados');
+                        setTimeout(() => window.location.href = '/tienda', 1500);
+                    } else {
+                        mostrarToast(data.error, true);
+                    }
                 }
             } catch(e) {
-                mostrarToast('Error de conexión', true);
+                mostrarToast('Error de conexión con el servidor', true);
             }
         }
         
