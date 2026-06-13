@@ -1580,7 +1580,7 @@ async function eliminarCliente(clienteId, nombreCliente) {
     const seguro = confirm(`⚠️ ¿Estás seguro de que querés eliminar permanentemente a "${nombreCliente}"?`);
     if (!seguro) return;
 
-    const adminPassword = prompt(`🔐 Para eliminar a este cliente, por favor ingresá tu contraseña de Administrador:`);
+    const adminPassword = prompt(`🔐 Para confirmar la baja, ingresá tu contraseña de Administrador:`);
     if (adminPassword === null) return; 
     if (!adminPassword.trim()) {
         alert("❌ Operación cancelada: La contraseña no puede estar vacía.");
@@ -1592,18 +1592,10 @@ async function eliminarCliente(clienteId, nombreCliente) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token') // Aquí se envía el token
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
             },
             body: JSON.stringify({ id: clienteId, adminPassword: adminPassword })
         });
-
-        // CONTROL DE SEGURIDAD EXPLICITO: Si el token venció (Error 401)
-        if (response.status === 401) {
-            alert("🔐 Tu sesión de administrador expiró por seguridad. Por favor, volvé a iniciar sesión.");
-            localStorage.removeItem('token'); // Limpiamos el token viejo roto
-            window.location.href = '/login';   // Te mandamos a loguear de nuevo
-            return;
-        }
 
         const res = await response.json();
         if (res.success) {
@@ -1612,11 +1604,11 @@ async function eliminarCliente(clienteId, nombreCliente) {
             else if (typeof listarClientes === 'function') listarClientes();
             else window.location.reload();
         } else {
-            alert('❌ ' + (res.error || 'No se pudo eliminar al cliente'));
+            alert('❌ ' + (res.error || 'No se pudo completar la operación'));
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al intentar dar de baja al usuario');
+        alert('Error de comunicación con el servidor al intentar dar de baja');
     }
 }
 
