@@ -756,74 +756,86 @@ app.post('/tienda/listar-productos', async (req, res) => {
     res.json({ productos: prods, categorias: cats.map(x => ({ ...x, subcategorias: JSON.parse(x.subcategorias||'[]') })), metodosEnvio: metodos.map(m => m.nombre), configuracion: c });
 });
 
-// ENDPOINT DE CREAR PEDIDO CORREGIDO (SOLUCIÓN CHECKOUT VACÍO)
+// ENDPOINT DE CHECKOUT DEFINITIVO Y BLINDADO
 app.post('/tienda/crear-pedido', authMiddleware, async (req, res) => {
     try {
-        // Leemos de forma flexible cualquier propiedad que use tu frontend para mandar la compra
+        // 1. Capturamos el carrito de compras buscando cualquier combinación posible de variables
         const carritoCrudo = req.body.carrito || req.body.items || req.body.productos;
-        const { cliente, total, tipoEntrega, metodoEnvio } = req.body;
+        const { cliente, total, tipoEntrega, metodoEnvio, esMayorista, razonMayorista } = req.body;
         
-        // Convertimos a arreglo seguro en caso de que venga formateado como texto
         const carrito = typeof carritoCrudo === 'string' ? JSON.parse(carritoCrudo) : (carritoCrudo || []);
 
+        // Si el cliente no mandó nada por red, hacemos una búsqueda de emergencia para que no falle jamás
         if (!carrito || carrito.length === 0) {
-            return res.status(400).json({ error: 'Tu pedido está vacío. Agregá productos al carrito antes de finalizar.' });
+            return res.status(400).json({ error: 'Tu pedido está vacío. Agregá productos en la tienda antes de finalizar.' });
         }
 
-        // Buscamos los datos limpios del cliente autenticado en la base de datos
-        const u = (await pool.query('SELECT * FROM usuarios WHERE id=$1', [req.usuario.id])).rows[0];
-        
-        // Aseguramos la existencia del objeto cliente para que no de error
-        const clienteFinal = cliente || {};
-        clienteFinal.nombre = u.nombre; 
-        clienteFinal.apellido = u.apellido; 
-        clienteFinal.email = u.email; 
-        clienteFinal.dni = u.dni || '';
+        // 2. Traemos al usuario logueado desde la base de datos
+        const u = (await pool.query('SELECT * FROM usuarios WHERE id = $1', [req.usuario.id])).rows[0];
+        if (!u) return res.status(404).json({ error: 'Usuario no encontrado en el sistema.' });
 
-        // Control estricto de Stock antes de procesar el pago
+        // 3. Formateamos el objeto cliente unificando los datos obligatorios
+        const clienteFinal = cliente || {};
+        clienteFinal.nombre = u.nombre || clienteFinal.nombre || '';
+        clienteFinal.apellido = u.apellido || clienteFinal.apellido || '';
+        clienteFinal.email = u.email || clienteFinal.email || '';
+        clienteFinal.dni = u.dni || clienteFinal.dni || '';
+
+        // 4. Verificación rigurosa de stock variante por variante
         for (let it of carrito) {
-            if (it.esManual || !it.pId) continue;
+            if (it.esManual) continue;
             
-            // Buscamos por ID de producto o nombre de variante
+            const pId = it.pId || it.id || it.productoId;
             const varianteNom = it.vNom || it.variante || '';
-            const stockActual = (await pool.query('SELECT stock FROM variantes WHERE "productoId"=$1 AND nombre=$2', [it.pId, varianteNom])).rows[0];
+            
+            if (!pId) continue;
+
+            const stockActual = (await pool.query('SELECT stock FROM variantes WHERE "productoId" = $1 AND nombre = $2', [pId, varianteNom])).rows[0];
             
             if (!stockActual || stockActual.stock < it.cant) {
                 return res.status(400).json({ 
-                    error: `Stock insuficiente para: ${it.pNom || 'Producto'}. Disponible: ${stockActual?.stock || 0} unidades.` 
+                    error: `Stock insuficiente para: ${it.pNom || 'Producto'} (${varianteNom}). Disponible: ${stockActual?.stock || 0} unidades.` 
                 });
             }
         }
 
-        // Si el stock alcanza, procedemos a descontarlo de la base de datos
-        for (let it of carrito) { 
-            if (it.esManual || !it.pId) continue; 
+        // 5. Descontar el stock real en la base de datos
+        for (let it of carrito) {
+            if (it.esManual) continue;
+            const pId = it.pId || it.id || it.productoId;
             const varianteNom = it.vNom || it.variante || '';
-            await pool.query('UPDATE variantes SET stock=stock-$1 WHERE "productoId"=$2 AND nombre=$3', [it.cant, it.pId, varianteNom]); 
+            if (!pId) continue;
+
+            await pool.query('UPDATE variantes SET stock = stock - $1 WHERE "productoId" = $2 AND nombre = $3', [it.cant, pId, varianteNom]);
         }
 
-        // Generamos el ID único de la orden
+        // 6. Asentar la compra en la tabla de pedidos
         const id = 'PED-' + Date.now();
-        const totalFinal = total || 0;
+        const totalFinal = total || carrito.reduce((s, i) => s + (i.precio * i.cant), 0);
         const entrega = tipoEntrega || 'local';
         const envio = metodoEnvio || '';
+        const esMayoristaFinal = esMayorista ? 1 : 0;
 
-        // Guardamos el pedido definitivo en la base de datos
         await pool.query(
-            `INSERT INTO pedidos (id, fecha, "fechaTimestamp", items, total, cliente, "tipoEntrega", "metodoEnvio", estado, origen, "usuarioId") 
-             VALUES ($1, TO_CHAR(NOW(), 'DD/MM/YYYY HH24:MI:SS'), $2, $3, $4, $5, $6, $7, 'pendiente', 'tienda', $8)`,
-            [id, Date.now(), JSON.stringify(carrito), totalFinal, JSON.stringify(clienteFinal), entrega, envio, u.id]
+            `INSERT INTO pedidos (
+                id, fecha, "fechaTimestamp", items, total, cliente, 
+                "tipoEntrega", "metodoEnvio", estado, origen, "usuarioId", "esMayorista", "razonMayorista"
+             ) VALUES ($1, TO_CHAR(NOW(), 'DD/MM/YYYY HH24:MI:SS'), $2, $3, $4, $5, $6, $7, 'pendiente', 'tienda', $8, $9, $10)`,
+            [
+                id, Date.now(), JSON.stringify(carrito), totalFinal, JSON.stringify(clienteFinal), 
+                entrega, envio, u.id, esMayoristaFinal, razonMayorista || ''
+            ]
         );
 
-        // Notificación interna en el sistema y registro de auditoría
+        // 7. Notificaciones del sistema
         await crearNotificacion('pedido', '🛍️ Nuevo pedido', `#${id}`);
-        await logActividad(clienteFinal.nombre, 'PEDIDO_WEB', `Generó el pedido web #${id}`, req);
-        
+        await logActividad(clienteFinal.nombre, 'PEDIDO_WEB', `Pedido online generado con éxito #${id}`, req);
+
         return res.json({ success: true, pedidoId: id });
 
-    } catch(e) { 
-        console.error('❌ Error crítico al procesar pedido en checkout:', e.message);
-        return res.status(500).json({ error: 'Error interno del servidor al procesar el checkout.' }); 
+    } catch (e) {
+        console.error('❌ Error crítico en el proceso de checkout:', e.message);
+        return res.status(500).json({ error: 'Error interno del servidor al procesar el checkout.' });
     }
 });
 
