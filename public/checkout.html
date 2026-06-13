@@ -255,6 +255,7 @@
         let metodoEntrega = 'local';
         const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
 
+        // CARGAR DATOS INICIALES AL CARGAR LA PÁGINA (VERSIÓN AUTO-DETECTABLE)
         async function iniciarCheckout() {
             const token = localStorage.getItem('token');
             if (!token) {
@@ -262,7 +263,7 @@
                 return;
             }
 
-            // 1. Cargar datos del perfil de forma fija
+            // 1. Recuperar los datos del cliente logueado
             try {
                 const resUser = await fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!resUser.ok) throw new Error();
@@ -274,7 +275,7 @@
                 document.getElementById('c-dni').value = usuario.dni || '';
                 document.getElementById('c-email').value = usuario.email || '';
                 
-                // Campos editables (si ya los guardó en el registro previo se precargan)
+                // Campos editables
                 document.getElementById('c-telefono').value = usuario.telefono || '';
                 document.getElementById('c-provincia').value = usuario.provincia || '';
                 document.getElementById('c-localidad').value = usuario.localidad || '';
@@ -287,12 +288,21 @@
                 return;
             }
 
-            // 2. Recuperar bolso de compras
-            const datosCarrito = localStorage.getItem('tienda_carrito');
+            // 2. ESCANEO MULTI-VARIABLE DEL CARRITO (Busca cualquier coincidencia en el localStorage)
+            const datosCarrito = localStorage.getItem('tienda_carrito') || 
+                                 localStorage.getItem('carrito') || 
+                                 localStorage.getItem('bolsa') || 
+                                 localStorage.getItem('items');
+                                 
             if (datosCarrito) {
-                try { listadoCarrito = JSON.parse(datosCarrito); } catch(e) { listadoCarrito = []; }
+                try { 
+                    listadoCarrito = JSON.parse(datosCarrito); 
+                } catch(e) { 
+                    listadoCarrito = []; 
+                }
             }
 
+            // Si a pesar del escaneo sigue vacío, mostramos el aviso
             if (!listadoCarrito || listadoCarrito.length === 0) {
                 document.getElementById('main-checkout').innerHTML = `
                     <div class="step-card" style="text-align:center; padding: 40px;">
