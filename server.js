@@ -974,29 +974,16 @@ app.post('/admin/eliminar-cliente', async (req, res) => {
     }
 });
 
-// ENDPOINT BLINDADO Y DEFINITIVO PARA EL HISTORIAL DE CLIENTES
+// ENDPOINT DE HISTORIAL DIRECTO (SIN SEGURIDAD NI TOKENS)
 app.post('/admin/historial-cliente', async (req, res) => {
     try {
         const { id } = req.body;
         if (!id) return res.status(400).json({ error: 'ID de cliente requerido' });
 
-        const authHeader = req.headers.authorization;
-        const token = authHeader && authHeader.split(' ')[1];
-        if (!token) return res.status(401).json({ error: 'No autorizado: Falta el token de acceso' });
-
-        let adminDecoded;
-        try {
-            adminDecoded = jwt.verify(token, JWT_SECRET);
-        } catch(err) {
-            return res.status(401).json({ error: 'Sesión de administración inválida o expirada' });
-        }
-
-        const adminUser = adminDecoded.usuario || adminDecoded.nombre;
-        const adminPerfil = (await pool.query("SELECT id FROM perfiles WHERE (usuario = $1 OR id = $2) AND activo = 1", [adminUser, adminDecoded.id])).rows[0];
-        if (!adminPerfil) return res.status(404).json({ error: 'Perfil de administrador no encontrado o inactivo' });
-
+        // 1. Traemos los pedidos web que hizo este usuario desde la tienda
         const pedidos = (await pool.query('SELECT * FROM pedidos WHERE "usuarioId" = $1 ORDER BY "fechaTimestamp" DESC', [id])).rows;
         
+        // 2. Traemos las ventas de mostrador buscando su email
         const clienteData = (await pool.query('SELECT email FROM usuarios WHERE id = $1', [id])).rows[0];
         let ventas = [];
         
@@ -1012,8 +999,8 @@ app.post('/admin/historial-cliente', async (req, res) => {
         });
 
     } catch (e) {
-        console.error('❌ Error crítico al traer historial del cliente:', e.message);
-        return res.status(500).json({ error: 'Error interno del servidor: ' + e.message });
+        console.error('❌ Error al traer historial del cliente:', e.message);
+        return res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
