@@ -234,10 +234,8 @@ async function initConfig() {
 }
 
 async function initMetodosEnvio() {
-    const metodos = ['Via Cargo', 'Correo Argentino', 'Andreani', 'Moto Mensajería'];
-    for (const m of metodos) {
-        await pool.query('INSERT INTO metodos_envio (nombre) SELECT $1 WHERE NOT EXISTS (SELECT 1 FROM metodos_envio WHERE nombre = $1)', [m]);
-    }
+    // Función vacía para evitar que se sigan inyectando métodos predeterminados duplicados.
+    // Ahora el sistema leerá únicamente lo que cargues de forma manual desde el panel de administración.
 }
 
 async function initAdmin() {
