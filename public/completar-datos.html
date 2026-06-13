@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Completar Datos | ESENCIA CURVY</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -16,7 +16,7 @@
         label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#3E2A1E}
         input,select{width:100%;padding:12px;border:2px solid #F0E6DC;border-radius:12px;font-size:14px}
         input:focus,select:focus{outline:none;border-color:#8B5E3C}
-        input[readonly]{background:#F8F2EC;cursor:not-allowed}
+        input[readonly]{background:#F8F2EC;cursor:not-allowed;border-color:#E8DCD2}
         .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
         .btn-submit{width:100%;padding:16px;background:#8B5E3C;color:white;border:none;border-radius:50px;font-weight:700;cursor:pointer;font-size:15px;margin-top:16px}
         .btn-submit:hover{background:#6B4423}
@@ -113,30 +113,24 @@
     </div>
     
     <script>
-        // Extraemos los parámetros de la URL de forma global
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         const esGoogle = urlParams.get('google');
         
-        // CANDADO REVISADO: Si no es de google y tampoco trae token tradicional, va al login
         if (esGoogle !== 'true' && !token) {
             window.location.href = '/login';
         }
         
-        // FUNCIÓN AUTOMÁTICA DE INICIALIZACIÓN
         async function inicializarFormulario() {
-            // Caso A: Si viene derivado desde Google por primera vez
             if (esGoogle === 'true') {
-                console.log("✨ Pre-cargando datos desde la sesión de Google...");
-                if (document.getElementById('nombre')) document.getElementById('nombre').value = urlParams.get('nombre') || '';
-                if (document.getElementById('apellido')) document.getElementById('apellido').value = urlParams.get('apellido') || '';
-                if (document.getElementById('email')) document.getElementById('email').value = urlParams.get('email') || '';
+                console.log("✨ Modo Google: Email fijado, resto de datos limpios para carga manual.");
+                // Forzamos campos de identificación vacíos
+                if (document.getElementById('nombre')) document.getElementById('nombre').value = '';
+                if (document.getElementById('apellido')) document.getElementById('apellido').value = '';
                 
-                // Hacemos que nombre y apellido sean readonly si vienen de Google (opcional, da más seguridad)
-                document.getElementById('nombre').readOnly = true;
-                document.getElementById('apellido').readOnly = true;
+                // El correo electrónico es la única propiedad que se hereda de forma fija
+                if (document.getElementById('email')) document.getElementById('email').value = urlParams.get('email') || '';
             } 
-            // Caso B: El flujo tradicional (Usuario con cuenta que le faltaban datos)
             else if (token) {
                 try {
                     const res = await fetch('/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -153,7 +147,6 @@
         }
         inicializarFormulario();
         
-        // FUNCIÓN DE GUARDADO CENTRALIZADA
         async function completarDatos() {
             const nombre = document.getElementById('nombre').value.trim();
             const apellido = document.getElementById('apellido').value.trim();
@@ -175,7 +168,6 @@
             try {
                 let res, data;
                 
-                // FLUJO DEFINITIVO 1: REGISTRO NUEVO DE GOOGLE (CREA EL USUARIO EN BD RECIÉN AHORA)
                 if (esGoogle === 'true') {
                     datosFormulario.googleId = urlParams.get('googleId');
                     datosFormulario.foto = urlParams.get('foto');
@@ -197,7 +189,6 @@
                         mostrarToast(data.error, true);
                     }
                 } 
-                // FLUJO 2: COMPLETAR DATOS TRADICIONAL (EL USUARIO YA EXISTÍA)
                 else {
                     res = await fetch('/auth/completar-datos', {
                         method: 'POST',
