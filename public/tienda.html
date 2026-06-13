@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>ESENCIA CURVY | Ropa en Talles Especiales para Mujer</title>
+    <title>ESENCIA CURVY | Talles Especiales Premium</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -415,7 +415,7 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
 </style>
 </head>
 <body>
-<div class="header-top"><div class="header-top-content"><div><i class="fas fa-truck"></i> Envíos a todo el país | <i class="fas fa-phone"></i> <span id="header-phone"></span></div><div><i class="fas fa-clock"></i> <span id="header-hours-text">Cargando...</span></div></div></div>
+<div class="header-top"><div class="header-top-content"><div><i class="fas fa-truck"></i> Moda curvy premium con envíos a todo el país | <i class="fas fa-phone"></i> <span id="header-phone"></span></div><div><i class="fas fa-clock"></i> <span id="header-hours-text">Cargando...</span></div></div></div>
 <div class="header"><div class="header-main">
 <div class="logo">
     <div class="logo-icon" id="logo-container">
@@ -426,7 +426,7 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
         <p id="tienda-slogan">TU ESENCIA NO TIENE TALLE</p>
     </div>
 </div>
-<div class="search-bar"><input type="text" id="search-input" placeholder="🔍 Buscar productos..."><button onclick="buscarProductos()"><i class="fas fa-search"></i></button></div>
+<div class="search-bar"><input type="text" id="search-input" placeholder="🔍 Buscar prendas..."><button onclick="buscarProductos()"><i class="fas fa-search"></i></button></div>
 <div class="header-actions">
     <button class="cart-btn" onclick="toggleCarrito()"><i class="fas fa-shopping-bag"></i> Mi Pedido <span class="cart-count" id="cart-count">0</span></button>
     <div style="position:relative"><button class="user-btn" id="user-btn" onclick="toggleUserMenu()"><i class="fas fa-user"></i></button><div class="user-menu" id="user-menu"><a href="/perfil"><i class="fas fa-user-circle"></i> Mi Perfil</a><a href="#" onclick="verMisPedidos()"><i class="fas fa-shopping-bag"></i> Mis Pedidos</a><hr><a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a></div></div>
@@ -440,7 +440,7 @@ h1,h2,h3,h4,.product-name,.destacado-nombre,.logo-text h1,.modal-details h4{font
     <div class="filters-sidebar"><div class="filter-section"><h4><i class="fas fa-filter"></i> Subcategorías</h4><div class="subcategory-list" id="subcategory-list"></div></div></div>
     <div class="products-area"><div class="products-header"><h3 id="products-title">Nuestros Productos</h3><select class="sort-select" id="sort-select" onchange="ordenarProductos()"><option value="default">Ordenar por</option><option value="price-asc">Precio: Menor a Mayor</option><option value="price-desc">Precio: Mayor a Menor</option><option value="name-asc">Nombre: A-Z</option><option value="name-desc">Nombre: Z-A</option></select></div><div class="products-grid" id="products-grid"></div></div>
 </div>
-<footer class="footer"><div class="footer-content"><div class="footer-section"><h4><i class="fas fa-store"></i> <span id="footer-nombre">ESENCIA CURVY</span></h4><p id="footer-direccion"></p><p id="footer-email"></p></div><div class="footer-section"><h4>Contacto</h4><p id="footer-telefono"></p><p id="footer-whatsapp"></p></div><div class="footer-section"><h4>Horarios</h4><p id="footer-horario-lv"></p><p id="footer-horario-sab"></p></div><div class="footer-section"><h4>Síguenos</h4><p id="footer-instagram"></p><p id="footer-facebook"></p></div></div><div style="text-align:center;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;opacity:0.7">© 2024 ESENCIA CURVY. Todos los derechos reservados.</div></footer>
+<footer class="footer"><div class="footer-content"><div class="footer-section"><h4><i class="fas fa-store"></i> <span id="footer-nombre">ESENCIA CURVY</span></h4><p id="footer-direccion"></p><p id="footer-email"></p></div><div class="footer-section"><h4>Contacto</h4><p id="footer-telefono"></p><p id="footer-whatsapp"></p></div><div class="footer-section"><h4>Horarios</h4><p id="footer-horario-lv"></p><p id="footer-horario-sab"></p></div><div class="footer-section"><h4>Síguenos</h4><p id="footer-instagram"></p><p id="footer-facebook"></p></div></div><div style="text-align:center;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;opacity:0.7">© 2026 ESENCIA CURVY. Todos los derechos reservados.</div></footer>
 
 <div class="modal" id="product-modal"><div class="modal-content"><div class="modal-header"><h3 id="modal-title"></h3><button class="modal-close" onclick="cerrarModal()">&times;</button></div><div class="modal-body">
     <img id="modal-product-image" class="producto-imagen-modal" src="https://via.placeholder.com/400" alt="Producto" draggable="false" oncontextmenu="return false;">
@@ -660,11 +660,9 @@ function irACheckout(){
     if(!carrito.length){mostrarToast('🛒 Carrito vacío','error');return}
     const token=localStorage.getItem('token');
     
-    // Guardamos el carrito actual de forma explícita antes de cualquier movimiento
     guardarCarritoLocal();
     
     if(configuracion.registroObligatorio && !token){
-        // Guardamos una copia especial para recuperarla post-login
         localStorage.setItem('carrito_respaldo_login', JSON.stringify(carrito));
         mostrarToast('🔐 Iniciá sesión para finalizar','error');
         setTimeout(()=>window.location.href='/login',1500);
@@ -688,7 +686,6 @@ function actualizarProgresoMayorista(){
     }
     
     const cantTotal=carrito.reduce((s,i)=>s+i.cant,0);
-    // Calcula el monto usando estrictamente la lista de precios por mayor
     const montoTotalMayorista=carrito.reduce((s,i)=>{
         const p=productos.find(x=>x.id==i.pId);
         const precioAUsar = (p && p.precioMayor > 0) ? p.precioMayor : (i.precioOriginal || i.precio);
@@ -755,7 +752,6 @@ function recalcularPreciosMayoristas(){
         return s + (precioAUsar * i.cant);
     },0);
     
-    // Filtro estricto según la opción guardada en base de datos
     let cumple = false;
     if (modo === 'cantidad') {
         cumple = cantTotal >= valorCantidad;
@@ -830,17 +826,14 @@ function renderizarCarrito(){
 function modificarCantidadCarrito(i,d){const it=carrito[i];if(!it)return;const nc=it.cant+d;if(nc<=0){eliminarDelCarrito(i);return}if(!it.esManual){const p=productos.find(x=>x.id==it.pId);const v=p?.variantes?.find(x=>x.nombre===it.vNom);if(v&&v.stock<nc){mostrarToast('❌ Stock insuficiente','error');return}}it.cant=nc;recalcularPreciosMayoristas();guardarCarritoLocal();renderizarCarrito();actualizarProgresoMayorista()}
 function eliminarDelCarrito(i){carrito.splice(i,1);recalcularPreciosMayoristas();guardarCarritoLocal();renderizarCarrito();actualizarProgresoMayorista();mostrarToast('🗑️ Producto eliminado')}
 
-// CONTROL DE CARRITO BLINDADO CON CONEXIÓN EN TIEMPO REAL AL SERVIDOR
 function guardarCarritoLocal(){
     const token = localStorage.getItem('token');
     const key = token ? 'carrito_' + token : 'carrito_anonimo';
     
-    // 1. Guardamos la copia de respaldo local tradicional
     localStorage.setItem(key, JSON.stringify(carrito));
-    localStorage.setItem('tienda_carrito', JSON.stringify(carrito)); // Duplicado estático de compatibilidad
+    localStorage.setItem('tienda_carrito', JSON.stringify(carrito)); 
     localStorage.setItem('carrito_timestamp', Date.now());
 
-    // 2. SINCRONIZACIÓN AUTOMÁTICA CON RAILWAY (Si está logueado, se guarda en Postgres)
     if (token) {
         fetch('/api/guardar-carrito', {
             method: 'POST',
@@ -858,7 +851,6 @@ async function cargarCarritoLocal(){
     const key = token ? 'carrito_' + token : 'carrito_anonimo';
     
     try {
-        // Si el usuario ya inició sesión, le pedimos su carrito guardado en Railway
         if (token) {
             const res = await fetch('/api/obtener-carrito', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -876,7 +868,6 @@ async function cargarCarritoLocal(){
         console.log("Servidor ocupado, usando respaldo de memoria local...");
     }
 
-    // Respaldo de emergencia en el navegador si no hay red o sesión
     const g = localStorage.getItem(key) || localStorage.getItem('tienda_carrito');
     const ts = localStorage.getItem('carrito_timestamp');
     if (g && ts && (Date.now() - ts < 7 * 24 * 60 * 60 * 1000)) {
@@ -897,7 +888,6 @@ function volverMenuAyuda(){document.getElementById('asistente-mensaje').innerHTM
 setTimeout(()=>{const burbuja=document.getElementById('asistente-burbuja');if(burbuja&&burbuja.style.display==='none'){burbuja.style.display='block'}},30000);
 
 document.addEventListener('DOMContentLoaded',()=>{
-    // Intentamos fusionar o recuperar el carrito de respaldo antes de renderizar nada
     const token = localStorage.getItem('token');
     const respaldo = localStorage.getItem('carrito_respaldo_login');
     
@@ -906,13 +896,11 @@ document.addEventListener('DOMContentLoaded',()=>{
             const tempCart = JSON.parse(respaldo);
             if (tempCart && tempCart.length > 0) {
                 carrito = tempCart;
-                // Lo guardamos definitivamente bajo la llave del nuevo usuario
                 const key = token ? 'carrito_' + token : 'carrito_anonimo';
                 localStorage.setItem(key, JSON.stringify(carrito));
                 localStorage.setItem('carrito_timestamp', Date.now());
             }
         } catch(e) {}
-        // Limpiamos el respaldo para que no se duplique en el futuro
         localStorage.removeItem('carrito_respaldo_login');
     }
 
