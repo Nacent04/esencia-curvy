@@ -292,7 +292,19 @@ async function enviarEmail(dest, asunto, html) {
 }
 
 cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
-const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } });
+// CONFIGURACIÓN SEGURO DEL TRANSPORTADOR DE EMAIL
+const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // true para puerto 465 con SSL nativo
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        rejectUnauthorized: false // Evita que caídas de certificados locales frenen el proceso
+    }
+});
 const JWT_SECRET = process.env.JWT_SECRET;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'casa-elegida-session-secret';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -858,33 +870,46 @@ app.post('/tienda/listar-pedidos', async (req, res) => {
 
 app.post('/tienda/confirmar-pedido', async (req, res) => {
     try {
-        const p = (await pool.query('SELECT * FROM pedidos WHERE id=$1 AND estado=$2', [req.body.pedidoId, 'pendiente'])).rows[0];
+        const { pedidoId } = req.body;
+        const p = (await pool.query('SELECT * FROM pedidos WHERE id=$1 AND estado=$2', [pedidoId, 'pendiente'])).rows[0];
+        
         if (!p) return res.status(400).json({ error: 'Pedido no encontrado o ya procesado.' });
         
         const pin = generarPIN();
-        const vid = 'FAC-' + Date.now(); // <-- Declarada en minúsculas como 'vid'
-        
-        // Asentamos la venta
+        const vid = 'FAC-' + Date.now();
+
+        // 1. Impactamos la venta en la base de datos inmediatamente
         await pool.query("INSERT INTO ventas (id,fecha,\"fechaTimestamp\",items,total,\"metodoPago\",logistica,cliente,estado,origen,\"pedidoId\") VALUES ($1,TO_CHAR(NOW(),'DD/MM/YYYY HH24:MI:SS'),$2,$3,$4,'pedido_online',$5,$6,'completada','tienda',$7)",
             [vid, Date.now(), p.items, p.total, p["tipoEntrega"]==='envio'?'envio':'local', p.cliente, p.id]);
         
-        // CORRECCIÓN CRÍTICA: Cambiado "vId" por "vid" para evitar que el proceso se cuelgue en loop eterno
         await pool.query('UPDATE pedidos SET estado=$1, pin=$2, "ventaId"=$3 WHERE id=$4', ['confirmado', pin, vid, p.id]);
+        await logActividad('Admin', 'CONFIRMAR_PEDIDO', `Pedido ${p.id} aprobado`, req);
         
-        await logActividad('Admin', 'CONFIRMAR_PEDIDO', `Pedido ${p.id}`, req);
-        
+        // 2. RESPUESTA INMEDIATA AL FRONTEND (Saca al navegador del estado pendiente en 0ms)
+        res.json({ success: true, ventaId: vid, pin: pin });
+
+        // 3. EL ENVÍO DE EMAIL CORRE POR DETRÁS (Sin 'await' para que no congele nada si falla)
         const cliente = JSON.parse(p.cliente||'{}');
         if (cliente.email) {
-            await enviarEmail(cliente.email, `Pedido #${p.id} confirmado`, `<h1>ESENCIA CURVY</h1><h2>¡Pedido confirmado!</h2><p>Tu PIN de retiro: <strong>${pin}</strong></p><p>Total: ${fmt.format(p.total)}</p>`);
+            const htmlEmail = `
+                <div style="font-family:sans-serif; max-width:500px; margin:0 auto; padding:20px; border:1px solid #FAEDCD; border-radius:16px;">
+                    <h2 style="color:#4A3728; text-align:center;">ESENCIA CURVY</h2>
+                    <p>¡Hola! Tu pedido ha sido confirmado con éxito. Ya podés pasar a retirarlo o esperar el despacho de tu envío.</p>
+                    <div style="background:#FEFAE0; padding:16px; border-radius:12px; text-align:center; margin:20px 0; border:1px solid #D4A373;">
+                        <span style="font-size:14px; color:#8B7355; display:block; margin-bottom:4px; font-weight:bold;">TU CÓDIGO PIN DE RETIRO</span>
+                        <strong style="font-size:32px; color:#4A3728; letter-spacing:4px;">${pin}</strong>
+                    </div>
+                    <p style="font-size:13px; color:#8B7355; text-align:center;">Monto Total de la Orden: <strong>${fmt.format(p.total)}</strong></p>
+                    <p style="font-size:11px; color:#b45309; text-align:center; margin-top:16px;">⚠️ Recordá presentar este PIN al momento de retirar tus prendas.</p>
+                </div>`;
+
+            enviarEmail(cliente.email, `📌 PIN de Retiro #${p.id} - ESENCIA CURVY`, htmlEmail)
+                .catch(err => console.error("Error de fondo enviando mail:", err.message));
         }
-        
-        // Cerramos la petición respondiendo con éxito (Saca al navegador del estado pendiente)
-        return res.json({ success: true, ventaId: vid, pin });
 
     } catch(e) { 
         console.error('❌ Error crítico al confirmar pedido:', e.message);
-        // Si algo falla, respondemos sí o sí para que la grilla no se cuelgue
-        return res.status(500).json({ error: 'Error interno del servidor: ' + e.message }); 
+        if (!res.headersSent) res.status(500).json({ error: e.message }); 
     }
 });
 
