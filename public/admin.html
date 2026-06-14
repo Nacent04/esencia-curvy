@@ -645,7 +645,22 @@ function renderPaginaEstadisticas() {
     </div>`; 
 }
     
-function renderPaginaRetiro() { return `<div class="panel"><h3><i class="fas fa-qrcode"></i> Retirar Pedido</h3><div style="max-width:400px;margin:0 auto;text-align:center"><input type="text" id="pin-retiro-input" maxlength="4" placeholder="0000" style="font-size:48px;text-align:center;letter-spacing:24px;width:200px;margin:20px auto;padding:16px"><button type="button" onclick="verificarPINRetiro()" class="btn-confirm">Verificar</button><div id="pin-retiro-resultado" style="margin-top:20px"></div></div></div>`; }
+function renderPaginaRetiro() { 
+    return `
+        <div class="panel" style="border: 2px solid #D4A373; max-width: 650px; margin: 0 auto;">
+            <h3 style="text-align:center; margin-bottom:10px;"><i class="fas fa-qrcode"></i> Retirar Pedido Tienda Web</h3>
+            <p style="text-align:center; font-size:13px; color:var(--text-light); margin-bottom:20px;">Ingresá el PIN de 4 dígitos proporcionado por la clienta para verificar su orden.</p>
+            
+            <div style="max-width:400px; margin:0 auto; text-align:center">
+                <input type="text" id="pin-retiro-input" maxlength="4" placeholder="0000" 
+                       style="font-size:36px; text-align:center; width:160px; margin:10px auto; padding:12px; border-radius:16px; border:2px solid #D4A373; font-weight:800; tracking: normal;">
+                <button type="button" onclick="verificarPINRetiro()" class="btn-confirm" style="margin-top:10px;"><i class="fas fa-search"></i> Buscar Pedido</button>
+                
+                <div id="pin-retiro-resultado" style="margin-top:24px; text-align:left;"></div>
+            </div>
+        </div>`; 
+}
+    
 function renderPaginaPedidosWeb() { return `<div class="panel"><h3><i class="fas fa-shopping-cart"></i> Pedidos Web</h3><div style="overflow-x:auto"><table style="width:100%"><thead><tr><th>Fecha/ID</th><th>Cliente</th><th>Items</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="lista-pedidos-body"></tbody></table></div></div>`; }
 function renderPaginaPerfiles() { return `<div class="panel"><h3 style="display:flex;justify-content:space-between"><span><i class="fas fa-users-cog"></i> Gestión de Perfiles</span><button type="button" onclick="abrirModalCrearPerfil()" class="tab-btn btn-success"><i class="fas fa-user-plus"></i> Nuevo Perfil</button></h3><div id="lista-perfiles"></div></div>`; }
 function renderPaginaLogs() { return `<div class="panel"><h3><i class="fas fa-history"></i> Registro de Actividad</h3><div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"><input type="text" id="logs-filtro" placeholder="🔍 Buscar..." style="flex:1;min-width:200px" onkeyup="cargarLogs()"><input type="date" id="logs-desde" style="width:150px" onchange="cargarLogs()"><input type="date" id="logs-hasta" style="width:150px" onchange="cargarLogs()"><button type="button" onclick="document.getElementById('logs-filtro').value='';document.getElementById('logs-desde').value='';document.getElementById('logs-hasta').value='';cargarLogs();" class="tab-btn">Limpiar</button></div><div style="overflow-x:auto"><table style="width:100%"><thead><tr><th>Fecha</th><th>Admin</th><th>Acción</th><th>Detalles</th></tr></thead><tbody id="logs-body"></tbody></table></div></div>`; }
@@ -1385,9 +1400,114 @@ async function cancelarPedidoAdmin(id) {
     }
 }
 
-async function verificarPINRetiro(){const p=document.getElementById('pin-retiro-input').value.trim();if(p.length!==4)return;const d=await safeFetch('/tienda/verificar-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:p})});if(d.success){document.getElementById('pin-retiro-resultado').innerHTML=`<div style="background:#d1fae5;padding:20px;border-radius:16px"><h4>✅ ${d.pedido.id}</h4><p>Total: ${fmt.format(d.pedido.total)}</p><button type="button" onclick="confirmarRetiro('${d.pedido.id}','${p}')" class="btn-confirm">Confirmar Retiro</button></div>`;}}
-async function confirmarRetiro(id,pin){await safeFetch('/tienda/retirar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pedidoId:id,pin})});mostrarToast('✅ Entregado');cargarPedidosTienda();}
+// 1. BUSCA EL PEDIDO Y DIBUJA LA LISTA CON FOTOS
+async function verificarPINRetiro(){
+    const p = document.getElementById('pin-retiro-input').value.trim();
+    if(p.length !== 4) {
+        mostrarToast('⚠️ El PIN debe ser de 4 números', true);
+        return;
+    }
+    try {
+        const d = await safeFetch('/tienda/verificar-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: p })
+        });
+        
+        if(d.success && d.pedido) {
+            const ped = d.pedido;
+            const cliente = ped.cliente || {};
+            const items = ped.items || [];
+            
+            let listaProductosHtml = '';
+            items.forEach(it => {
+                listaProductosHtml += `
+                    <div style="display:flex; align-items:center; gap:10px; background:white; padding:8px; border-radius:12px; margin-bottom:8px; border:1px solid #FAEDCD;">
+                        <img src="${sanitizarUrl(it.vFoto)}" style="width:45px; height:50px; object-fit:cover; border-radius:6px; background:#FAEDCD;" onerror="this.src='https://via.placeholder.com/45x50?text=Moda'">
+                        <div style="flex:1;">
+                            <strong style="font-size:13px; display:block; color:#4A3728;">${escapeHtml(it.pNom)}</strong>
+                            <span style="font-size:11px; color:#8B7355;">Talle/Variante: ${escapeHtml(it.vNom)} • Cant: ${it.cant}</span>
+                        </div>
+                        <strong style="font-size:13px; color:#D4A373;">${fmt.format(it.precio * it.cant)}</strong>
+                    </div>`;
+            });
 
+            document.getElementById('pin-retiro-resultado').innerHTML = `
+                <div style="background:#FEFAE0; padding:20px; border-radius:20px; border:2px solid #D4A373; box-shadow:0 8px 24px rgba(0,0,0,0.02);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px dashed #D4A373; padding-bottom:10px;">
+                        <div>
+                            <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:#8B7355;">Orden Encontrada</span>
+                            <h4 style="margin:2px 0 0 0; font-size:16px; color:#4A3728;">${ped.id}</h4>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:11px; color:#8B7355;">Total de la Compra</span>
+                            <strong style="font-size:16px; color:#D4A373; display:block;">${fmt.format(ped.total)}</strong>
+                        </div>
+                    </div>
+                    
+                    <div style="font-size:12px; margin-bottom:14px; color:#4A3728; background:white; padding:10px; border-radius:12px; border:1px solid #FAEDCD;">
+                        <strong>👤 Cliente:</strong> ${escapeHtml(cliente.nombre || 'Mostrador')} ${escapeHtml(cliente.apellido || '')}<br>
+                        <strong>📞 Celular:</strong> ${escapeHtml(cliente.telefono || cliente.celular || '-')}<br>
+                        <strong>🪪 DNI:</strong> ${escapeHtml(cliente.dni || '-')}
+                    </div>
+
+                    <h5 style="font-size:12px; color:#4A3728; margin-bottom:8px;"><i class="fas fa-box-open"></i> Prendas a Entregar:</h5>
+                    <div style="max-height:180px; overflow-y:auto; margin-bottom:16px;">
+                        ${listaProductosHtml}
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <button type="button" onclick="verDetallePedidoDirectoDesdePin('${ped.id}')" class="tab-btn btn-info" style="justify-content:center; padding:12px; border-radius:50px; font-size:13px;">
+                            <i class="fas fa-eye"></i> Ver Tique Completo
+                        </button>
+                        <button type="button" onclick="confirmarRetiro('${ped.id}','${p}')" class="btn-confirm" style="margin-top:0; padding:12px; font-size:13px; background:linear-gradient(135deg,#4A3728,#6B5344);">
+                            <i class="fas fa-check-circle"></i> Confirmar Retiro
+                        </button>
+                    </div>
+                </div>`;
+        } else {
+            document.getElementById('pin-retiro-resultado').innerHTML = `
+                <div style="background:#FEE2E2; color:#991B1B; padding:14px; border-radius:14px; border:1px solid #FCA5A5; text-align:center; font-size:13px; font-weight:600;">
+                    ❌ Código PIN incorrecto o el pedido ya fue retirado.
+                </div>`;
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+// 2. ABRE EL MODAL DE TIQUE DETALLADO SI SE NECESITA REVISAR
+function verDetallePedidoDirectoDesdePin(pedidoId) {
+    const p = pedidosTienda.find(x => x.id === pedidoId);
+    if (p) {
+        verDetallePedido(pedidoId);
+    } else {
+        alert("Para ver la hoja de ruta de empaque completa, consultá la pestaña 'Pedidos Web'.");
+    }
+}
+
+// 3. CONFIRMA EL RETIRO DE MERCADERÍA EN EL SERVIDOR Y LIMPIA LA PANTALLA
+async function confirmarRetiro(id, pin) {
+    try {
+        await safeFetch('/tienda/retirar-pedido', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedidoId: id, pin })
+        });
+        
+        mostrarToast('✅ Pedido entregado con éxito');
+        
+        // Dejamos el buscador en blanco para la siguiente clienta
+        document.getElementById('pin-retiro-input').value = '';
+        document.getElementById('pin-retiro-resultado').innerHTML = '';
+        
+        await cargarPedidosTienda();
+
+    } catch(e) {
+        console.error("Error al procesar el retiro físico:", e);
+    }
+}
+    
 async function cargarDashboard(){try{const d=await safeFetch('/admin/estadisticas-avanzadas',{method:'POST'});const c=document.getElementById('estadisticas-avanzadas');if(!c)return;c.innerHTML=`<div class="stats-grid"><div class="stat-card"><i class="fas fa-calendar-day" style="color:#6366f1"></i><h3>${fmt.format(d.ventasHoy||0)}</h3><p>Hoy</p></div><div class="stat-card"><i class="fas fa-calendar-alt" style="color:#10b981"></i><h3>${fmt.format(d.ventasMes||0)}</h3><p>Mes</p></div><div class="stat-card"><i class="fas fa-users" style="color:#8b5cf6"></i><h3>${d.totalClientes||0}</h3><p>Clientes</p></div><div class="stat-card"><i class="fas fa-shopping-cart" style="color:#06b6d4"></i><h3>${d.pedidosPendientes||0}</h3><p>Pendientes</p></div></div>`;cargarGraficosDashboard();await cargarEstadisticasVendedor();}catch(e){}}
 
 async function cargarGraficosDashboard(){
