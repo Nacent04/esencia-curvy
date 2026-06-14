@@ -1365,25 +1365,25 @@ async function confirmarPedidoWeb(id) {
 
 async function marcarAbonado(id) {
     try {
-        await safeFetch('/tienda/marcar-abonado', {
+        const data = await safeFetch('/tienda/marcar-abonado', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pedidoId: id })
         });
         
-        mostrarToast('✅ Pedido marcado como abonado');
+        // Si el servidor generó el PIN con éxito, te lo muestra en pantalla
+        if (data.pin) {
+            alert('✨ Pedido marcado como abonado con éxito. El PIN generado es: ' + data.pin);
+        } else {
+            mostrarToast('✅ Pedido marcado como abonado');
+        }
         
-        // FORZADO ABSOLUTO: Recarga la página entera al instante
-        setTimeout(() => {
-            location.reload();
-        }, 500);
-
+        await cargarPedidosTienda(); // Refresca la lista sin parpadear
     } catch(e) {
-        console.error("Error al marcar abonado:", e);
-        location.reload();
+        console.error(e);
     }
 }
-
+    
 async function cancelarPedidoAdmin(id) {
     if(!confirm('¿Cancelar? Se devolverá el stock.')) return;
     try {
