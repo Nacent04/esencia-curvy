@@ -1343,25 +1343,27 @@ function verDetallePedido(id) {
 }
 
 // ==========================================================================
-// CONTROL DE PEDIDOS WEB CON ACTUALIZACIÓN EN TIEMPO REAL
+// RECONSTRUCCIÓN CON RE-RENDERIZADO FORZADO DE PEDIDOS WEB
 // ==========================================================================
 
 async function confirmarPedidoWeb(id) {
-    if(!confirm('¿Estás seguro de confirmar este pedido online?')) return;
+    if(!confirm('¿Confirmar este pedido online?')) return;
     try {
+        // Usamos el endpoint correcto apuntando al token de administrador
         const data = await safeFetch('/tienda/confirmar-pedido', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pedidoId: id })
         });
         
-        // El servidor asienta en Postgres, genera el PIN y devuelve la confirmación
-        mostrarToast('✨ Pedido confirmado y PIN generado con éxito');
+        mostrarToast('✨ Pedido confirmado y PIN generado');
         
-        // Forzamos el re-renderizado inmediato de la tabla en pantalla
-        await cargarPedidosTienda();
+        // REFRESCAR LA TABLA INMEDIATAMENTE
+        await cargarPedidosTienda(); 
     } catch(e) {
-        console.error("Error al confirmar pedido:", e);
+        console.error(e);
+        // Fallback de emergencia si el render interno falla: recargamos la página entera
+        location.reload();
     }
 }
 
@@ -1373,17 +1375,18 @@ async function marcarAbonado(id) {
             body: JSON.stringify({ pedidoId: id })
         });
         
-        mostrarToast('✅ Pedido marcado como ABONADO');
+        mostrarToast('✅ Pedido marcado como abonado');
         
-        // Forzamos el re-renderizado inmediato de la tabla en pantalla
+        // REFRESCAR LA TABLA INMEDIATAMENTE
         await cargarPedidosTienda();
     } catch(e) {
-        console.error("Error al marcar abonado:", e);
+        console.error(e);
+        location.reload();
     }
 }
 
 async function cancelarPedidoAdmin(id) {
-    if(!confirm('¿Estás seguro de cancelar este pedido de forma definitiva? Se reincorporará el stock.')) return;
+    if(!confirm('¿Cancelar? Se devolverá el stock.')) return;
     try {
         await safeFetch('/tienda/cancelar-pedido-admin', {
             method: 'POST',
@@ -1391,12 +1394,13 @@ async function cancelarPedidoAdmin(id) {
             body: JSON.stringify({ pedidoId: id })
         });
         
-        mostrarToast('🗑️ Pedido cancelado y stock devuelto');
+        mostrarToast('🗑️ Pedido cancelado');
         
-        // Forzamos el re-renderizado inmediato de la tabla en pantalla
+        // REFRESCAR LA TABLA INMEDIATAMENTE
         await cargarPedidosTienda();
     } catch(e) {
-        console.error("Error al cancelar pedido:", e);
+        console.error(e);
+        location.reload();
     }
 }
 
