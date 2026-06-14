@@ -1343,27 +1343,29 @@ function verDetallePedido(id) {
 }
 
 // ==========================================================================
-// RECONSTRUCCIÓN CON RE-RENDERIZADO FORZADO DE PEDIDOS WEB
+// SOLUCIÓN DEFINITIVA: CONTROL DE PEDIDOS CON RESETEO DE PANTALLA INMEDIATO
 // ==========================================================================
 
 async function confirmarPedidoWeb(id) {
     if(!confirm('¿Confirmar este pedido online?')) return;
     try {
-        // Usamos el endpoint correcto apuntando al token de administrador
         const data = await safeFetch('/tienda/confirmar-pedido', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pedidoId: id })
         });
         
+        // Ejecutamos el aviso visual
         mostrarToast('✨ Pedido confirmado y PIN generado');
         
-        // REFRESCAR LA TABLA INMEDIATAMENTE
-        await cargarPedidosTienda(); 
+        // FORZADO ABSOLUTO: Recarga la página entera al instante
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+
     } catch(e) {
-        console.error(e);
-        // Fallback de emergencia si el render interno falla: recargamos la página entera
-        location.reload();
+        console.error("Error al confirmar:", e);
+        location.reload(); // Fallback de emergencia
     }
 }
 
@@ -1377,10 +1379,13 @@ async function marcarAbonado(id) {
         
         mostrarToast('✅ Pedido marcado como abonado');
         
-        // REFRESCAR LA TABLA INMEDIATAMENTE
-        await cargarPedidosTienda();
+        // FORZADO ABSOLUTO: Recarga la página entera al instante
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+
     } catch(e) {
-        console.error(e);
+        console.error("Error al marcar abonado:", e);
         location.reload();
     }
 }
@@ -1396,10 +1401,13 @@ async function cancelarPedidoAdmin(id) {
         
         mostrarToast('🗑️ Pedido cancelado');
         
-        // REFRESCAR LA TABLA INMEDIATAMENTE
-        await cargarPedidosTienda();
+        // FORZADO ABSOLUTO: Recarga la página entera al instante
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+
     } catch(e) {
-        console.error(e);
+        console.error("Error al cancelar:", e);
         location.reload();
     }
 }
