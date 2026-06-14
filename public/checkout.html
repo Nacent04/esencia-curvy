@@ -444,13 +444,23 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    // 1. Limpiamos el carrito en la base de datos de Railway
                     await fetch('/api/guardar-carrito', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({ carrito: [] })
                     });
+                    
+                    // 2. Limpiamos todas las variables locales en la memoria del celular para que quede en 0
+                    listadoCarrito = [];
                     localStorage.removeItem('tienda_carrito'); 
+                    localStorage.removeItem('carrito');
+                    const tokenKey = token ? 'carrito_' + token : 'carrito_anonimo';
+                    localStorage.removeItem(tokenKey);
+                    
                     mostrarToast('✨ ¡Pedido confirmado con éxito!');
+                    
+                    // 3. Volvemos a la tienda con el carrito totalmente vacío
                     setTimeout(() => window.location.href = '/tienda', 2500);
                 } else {
                     alert('❌ Ocurrió un inconveniente: ' + data.error);
