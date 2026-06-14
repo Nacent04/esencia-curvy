@@ -868,6 +868,7 @@ app.post('/tienda/listar-pedidos', async (req, res) => {
     res.json({ lista: pedidos.map(p => ({ ...p, items: JSON.parse(p.items||'[]'), cliente: JSON.parse(p.cliente||'{}') })) });
 });
 
+// 1. ENDPOINT PARA CONFIRMAR EL PEDIDO (Pasa a confirmado, controla stock, pero NO genera PIN ni asienta venta)
 app.post('/tienda/confirmar-pedido', async (req, res) => {
     try {
         const { pedidoId } = req.body;
@@ -875,41 +876,63 @@ app.post('/tienda/confirmar-pedido', async (req, res) => {
         
         if (!p) return res.status(400).json({ error: 'Pedido no encontrado o ya procesado.' });
         
+        // Solo cambiamos el estado para apartar la mercadería, sin generar PIN
+        await pool.query('UPDATE pedidos SET estado=$1 WHERE id=$2', ['confirmado', p.id]);
+        await logActividad('Admin', 'CONFIRMAR_PEDIDO', `Pedido ${p.id} aprobado (Espera pago)`, req);
+        
+        return res.json({ success: true, estado: 'confirmado' });
+
+    } catch(e) { 
+        console.error('❌ Error al confirmar pedido:', e.message);
+        if (!res.headersSent) res.status(500).json({ error: e.message }); 
+    }
+});
+
+// 2. ENDPOINT PARA MARCAR ABONADO (Acá se genera el PIN, se asienta la venta y se manda el mail)
+app.post('/tienda/marcar-abonado', async (req, res) => {
+    try {
+        const { pedidoId } = req.body;
+        const p = (await pool.query('SELECT * FROM pedidos WHERE id=$1 AND estado=$2', [pedidoId, 'confirmado'])).rows[0];
+        
+        if (!p) return res.status(400).json({ error: 'El pedido debe estar verificado y confirmado antes de marcarlo como abonado.' });
+        
+        // ACÁ SE GENERA EL PIN DEFINITIVO
         const pin = generarPIN();
         const vid = 'FAC-' + Date.now();
 
-        // 1. Impactamos la venta en la base de datos inmediatamente
+        // Asentamos la venta en el historial de facturación para tu caja diaria
         await pool.query("INSERT INTO ventas (id,fecha,\"fechaTimestamp\",items,total,\"metodoPago\",logistica,cliente,estado,origen,\"pedidoId\") VALUES ($1,TO_CHAR(NOW(),'DD/MM/YYYY HH24:MI:SS'),$2,$3,$4,'pedido_online',$5,$6,'completada','tienda',$7)",
             [vid, Date.now(), p.items, p.total, p["tipoEntrega"]==='envio'?'envio':'local', p.cliente, p.id]);
         
-        await pool.query('UPDATE pedidos SET estado=$1, pin=$2, "ventaId"=$3 WHERE id=$4', ['confirmado', pin, vid, p.id]);
-        await logActividad('Admin', 'CONFIRMAR_PEDIDO', `Pedido ${p.id} aprobado`, req);
+        // Guardamos el PIN y el ID de venta en el pedido
+        await pool.query('UPDATE pedidos SET estado=$1, pin=$2, "ventaId"=$3 WHERE id=$4', ['abonado', pin, vid, p.id]);
+        await logActividad('Admin', 'PEDIDO_ABONADO', `Pedido ${p.id} marcado como abonado. PIN: ${pin}`, req);
         
-        // 2. RESPUESTA INMEDIATA AL FRONTEND (Saca al navegador del estado pendiente en 0ms)
-        res.json({ success: true, ventaId: vid, pin: pin });
+        // RESPUESTA INMEDIATA AL PANEL ADMIN
+        res.json({ success: true, estado: 'abonado', pin: pin });
 
-        // 3. EL ENVÍO DE EMAIL CORRE POR DETRÁS (Sin 'await' para que no congele nada si falla)
+        // ENVÍO DE EMAIL EN SEGUNDO PLANO (Con el PIN adentro)
         const cliente = JSON.parse(p.cliente||'{}');
         if (cliente.email) {
             const htmlEmail = `
                 <div style="font-family:sans-serif; max-width:500px; margin:0 auto; padding:20px; border:1px solid #FAEDCD; border-radius:16px;">
                     <h2 style="color:#4A3728; text-align:center;">ESENCIA CURVY</h2>
-                    <p>¡Hola! Tu pedido ha sido confirmado con éxito. Ya podés pasar a retirarlo o esperar el despacho de tu envío.</p>
+                    <p>¡Hola! Confirmamos el pago de tu compra. Tu pedido ya está listo para ser retirado o despachado.</p>
                     <div style="background:#FEFAE0; padding:16px; border-radius:12px; text-align:center; margin:20px 0; border:1px solid #D4A373;">
                         <span style="font-size:14px; color:#8B7355; display:block; margin-bottom:4px; font-weight:bold;">TU CÓDIGO PIN DE RETIRO</span>
                         <strong style="font-size:32px; color:#4A3728; letter-spacing:4px;">${pin}</strong>
                     </div>
-                    <p style="font-size:13px; color:#8B7355; text-align:center;">Monto Total de la Orden: <strong>${fmt.format(p.total)}</strong></p>
-                    <p style="font-size:11px; color:#b45309; text-align:center; margin-top:16px;">⚠️ Recordá presentar este PIN al momento de retirar tus prendas.</p>
+                    <p style="font-size:13px; color:#8B7355; text-align:center;">Monto Abonado: <strong>${fmt.format(p.total)}</strong></p>
+                    <p style="font-size:11px; color:#b45309; text-align:center; margin-top:16px;">⚠️ Presentá este código PIN al momento de retirar tus prendas en el local.</p>
                 </div>`;
 
-            enviarEmail(cliente.email, `📌 PIN de Retiro #${p.id} - ESENCIA CURVY`, htmlEmail)
+            enviarEmail(cliente.email, `📌 PIN de Retiro Pedido #${p.id} - ESENCIA CURVY`, htmlEmail)
                 .catch(err => console.error("Error de fondo enviando mail:", err.message));
         }
 
-    } catch(e) { 
-        console.error('❌ Error crítico al confirmar pedido:', e.message);
-        if (!res.headersSent) res.status(500).json({ error: e.message }); 
+    } catch(e) {
+        console.error('❌ Error crítico al marcar abonado:', e.message);
+        if (!res.headersSent) res.status(500).json({ error: e.message });
     }
 });
 
