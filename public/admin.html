@@ -1342,27 +1342,64 @@ function verDetallePedido(id) {
     document.body.appendChild(modal); 
 }
 
-async function confirmarPedidoWeb(id){
-    if(!confirm('¿Confirmar?')) return;
-    
-    const respuesta = await safeFetch('/tienda/confirmar-pedido', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pedidoId: id })
-    });
-    
-    if (respuesta && respuesta.success) {
-        mostrarToast('✨ Pedido confirmado con éxito');
+// ==========================================================================
+// CONTROL DE PEDIDOS WEB CON ACTUALIZACIÓN EN TIEMPO REAL
+// ==========================================================================
+
+async function confirmarPedidoWeb(id) {
+    if(!confirm('¿Estás seguro de confirmar este pedido online?')) return;
+    try {
+        const data = await safeFetch('/tienda/confirmar-pedido', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedidoId: id })
+        });
         
-        // >>> LA SOLUCIÓN: Recarga la grilla al instante para mostrar el PIN y el botón Abonado <<<
-        setTimeout(() => {
-            cargarPedidosTienda(); 
-        }, 800);
+        // El servidor asienta en Postgres, genera el PIN y devuelve la confirmación
+        mostrarToast('✨ Pedido confirmado y PIN generado con éxito');
+        
+        // Forzamos el re-renderizado inmediato de la tabla en pantalla
+        await cargarPedidosTienda();
+    } catch(e) {
+        console.error("Error al confirmar pedido:", e);
     }
 }
 
-async function marcarAbonado(id){await safeFetch('/tienda/marcar-abonado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pedidoId:id})});mostrarToast('✅ Abonado');cargarPedidosTienda();}
-async function cancelarPedidoAdmin(id){if(!confirm('¿Cancelar?'))return;await safeFetch('/tienda/cancelar-pedido-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pedidoId:id})});mostrarToast('✅ Cancelado');cargarPedidosTienda();}
+async function marcarAbonado(id) {
+    try {
+        await safeFetch('/tienda/marcar-abonado', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedidoId: id })
+        });
+        
+        mostrarToast('✅ Pedido marcado como ABONADO');
+        
+        // Forzamos el re-renderizado inmediato de la tabla en pantalla
+        await cargarPedidosTienda();
+    } catch(e) {
+        console.error("Error al marcar abonado:", e);
+    }
+}
+
+async function cancelarPedidoAdmin(id) {
+    if(!confirm('¿Estás seguro de cancelar este pedido de forma definitiva? Se reincorporará el stock.')) return;
+    try {
+        await safeFetch('/tienda/cancelar-pedido-admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedidoId: id })
+        });
+        
+        mostrarToast('🗑️ Pedido cancelado y stock devuelto');
+        
+        // Forzamos el re-renderizado inmediato de la tabla en pantalla
+        await cargarPedidosTienda();
+    } catch(e) {
+        console.error("Error al cancelar pedido:", e);
+    }
+}
+
 async function verificarPINRetiro(){const p=document.getElementById('pin-retiro-input').value.trim();if(p.length!==4)return;const d=await safeFetch('/tienda/verificar-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:p})});if(d.success){document.getElementById('pin-retiro-resultado').innerHTML=`<div style="background:#d1fae5;padding:20px;border-radius:16px"><h4>✅ ${d.pedido.id}</h4><p>Total: ${fmt.format(d.pedido.total)}</p><button onclick="confirmarRetiro('${d.pedido.id}','${p}')" class="btn-confirm">Confirmar Retiro</button></div>`;}}
 async function confirmarRetiro(id,pin){await safeFetch('/tienda/retirar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pedidoId:id,pin})});mostrarToast('✅ Entregado');cargarPedidosTienda();}
 
