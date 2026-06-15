@@ -888,51 +888,64 @@ app.post('/tienda/confirmar-pedido', async (req, res) => {
     }
 });
 
-// 2. ENDPOINT PARA MARCAR ABONADO (Acá se genera el PIN, se asienta la venta y se manda el mail)
+// 1. ENDPOINT MARCAR ABONADO MODIFICADO (Detecta si genera PIN o no)
 app.post('/tienda/marcar-abonado', async (req, res) => {
     try {
         const { pedidoId } = req.body;
         const p = (await pool.query('SELECT * FROM pedidos WHERE id=$1 AND estado=$2', [pedidoId, 'confirmado'])).rows[0];
         
-        if (!p) return res.status(400).json({ error: 'El pedido debe estar verificado y confirmado antes de marcarlo como abonado.' });
+        if (!p) return res.status(400).json({ error: 'El pedido debe estar verificado antes de marcarlo como abonado.' });
         
-        // ACÁ SE GENERA EL PIN DEFINITIVO
-        const pin = generarPIN();
+        let pin = null;
+        // >>> REGLA CRÍTICA: Solo genera PIN si el tipo de entrega NO es envío <<<
+        if (p["tipoEntrega"] !== 'envio') {
+            pin = generarPIN();
+        }
+        
         const vid = 'FAC-' + Date.now();
 
-        // Asentamos la venta en el historial de facturación para tu caja diaria
+        // Asentamos la venta en tu caja/historial general
         await pool.query("INSERT INTO ventas (id,fecha,\"fechaTimestamp\",items,total,\"metodoPago\",logistica,cliente,estado,origen,\"pedidoId\") VALUES ($1,TO_CHAR(NOW(),'DD/MM/YYYY HH24:MI:SS'),$2,$3,$4,'pedido_online',$5,$6,'completada','tienda',$7)",
             [vid, Date.now(), p.items, p.total, p["tipoEntrega"]==='envio'?'envio':'local', p.cliente, p.id]);
         
-        // Guardamos el PIN y el ID de venta en el pedido
+        // Guardamos los cambios en Postgres (Si es envío, el campo pin queda como NULL)
         await pool.query('UPDATE pedidos SET estado=$1, pin=$2, "ventaId"=$3 WHERE id=$4', ['abonado', pin, vid, p.id]);
-        await logActividad('Admin', 'PEDIDO_ABONADO', `Pedido ${p.id} marcado como abonado. PIN: ${pin}`, req);
+        await logActividad('Admin', 'PEDIDO_ABONADO', `Pedido ${p.id} marcado como abonado.`, req);
         
-        // RESPUESTA INMEDIATA AL PANEL ADMIN
-        res.json({ success: true, estado: 'abonado', pin: pin });
+        res.json({ success: true, estado: 'abonado', pin: pin, tipoEntrega: p["tipoEntrega"] });
 
-        // ENVÍO DE EMAIL EN SEGUNDO PLANO (Con el PIN adentro)
+        // Enviar Email avisando del pago
         const cliente = JSON.parse(p.cliente||'{}');
         if (cliente.email) {
-            const htmlEmail = `
-                <div style="font-family:sans-serif; max-width:500px; margin:0 auto; padding:20px; border:1px solid #FAEDCD; border-radius:16px;">
-                    <h2 style="color:#4A3728; text-align:center;">ESENCIA CURVY</h2>
-                    <p>¡Hola! Confirmamos el pago de tu compra. Tu pedido ya está listo para ser retirado o despachado.</p>
-                    <div style="background:#FEFAE0; padding:16px; border-radius:12px; text-align:center; margin:20px 0; border:1px solid #D4A373;">
-                        <span style="font-size:14px; color:#8B7355; display:block; margin-bottom:4px; font-weight:bold;">TU CÓDIGO PIN DE RETIRO</span>
-                        <strong style="font-size:32px; color:#4A3728; letter-spacing:4px;">${pin}</strong>
-                    </div>
-                    <p style="font-size:13px; color:#8B7355; text-align:center;">Monto Abonado: <strong>${fmt.format(p.total)}</strong></p>
-                    <p style="font-size:11px; color:#b45309; text-align:center; margin-top:16px;">⚠️ Presentá este código PIN al momento de retirar tus prendas en el local.</p>
-                </div>`;
-
-            enviarEmail(cliente.email, `📌 PIN de Retiro Pedido #${p.id} - ESENCIA CURVY`, htmlEmail)
-                .catch(err => console.error("Error de fondo enviando mail:", err.message));
+            let mensajeMail = `<h3>¡Recibimos tu pago con éxito!</h3><p>Tu pedido ya está siendo preparado para el despacho a tu domicilio.</p>`;
+            if (pin) {
+                mensajeMail = `<h3>¡Recibimos tu pago con éxito!</h3><p>Ya podés pasar a retirar tu pedido utilizando el siguiente código:</p><div style="background:#FEFAE0; padding:15px; font-size:24px; font-weight:bold; text-align:center; border:1px solid #D4A373;">${pin}</div>`;
+            }
+            enviarEmail(cliente.email, `💳 Pago Confirmado - Pedido #${p.id}`, `<h1>ESENCIA CURVY</h1>${mensajeMail}`).catch(err => console.error(err));
         }
 
     } catch(e) {
-        console.error('❌ Error crítico al marcar abonado:', e.message);
+        console.error('❌ Error en marcar abonado:', e.message);
         if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
+});
+
+// 2. NUEVO ENDPOINT PARA CAMBIAR A ENVIADO (Para finalizar el circuito de envíos)
+app.post('/tienda/marcar-enviado', async (req, res) => {
+    try {
+        const { pedidoId } = req.body;
+        const p = (await pool.query('SELECT * FROM pedidos WHERE id=$1 AND estado=$2', [pedidoId, 'abonado'])).rows[0];
+        
+        if (!p) return res.status(400).json({ error: 'Pedido no encontrado o no está en estado abonado.' });
+        
+        // Pasamos el pedido a enviado (o entregado para cerrar el circuito)
+        await pool.query('UPDATE pedidos SET estado=$1 WHERE id=$2', ['enviado', p.id]);
+        await logActividad('Admin', 'PEDIDO_ENVIADO', `Pedido ${p.id} despachado por transporte`, req);
+        
+        return res.json({ success: true, estado: 'enviado' });
+    } catch(e) {
+        console.error('❌ Error al marcar enviado:', e.message);
+        return res.status(500).json({ error: e.message });
     }
 });
 
