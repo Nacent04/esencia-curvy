@@ -284,11 +284,24 @@ async function crearNotificacion(tipo, titulo, desc) {
 }
 
 async function enviarEmail(dest, asunto, html) {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return false;
+    // Si faltan las variables en Railway, frena el código acá
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error("❌ Error: Faltan configurar las variables EMAIL_USER o EMAIL_PASS en Railway.");
+        return false;
+    }
     try {
-        await transporter.sendMail({ from: `"${(await getEmpresa()).nombre}" <${process.env.EMAIL_USER}>`, to: dest, subject: asunto, html });
+        await transporter.sendMail({ 
+            from: `"${(await getEmpresa()).nombre}" <${process.env.EMAIL_USER}>`, 
+            to: dest, 
+            subject: asunto, 
+            html 
+        });
+        console.log(`📩 Correo enviado con éxito a: ${dest}`);
         return true;
-    } catch(e) { return false; }
+    } catch(e) { 
+        console.error("❌ Error real de Nodemailer al conectar con Gmail:", e.message);
+        return false; 
+    }
 }
 
 cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
