@@ -1401,7 +1401,12 @@ async function marcarAbonado(id) {
             mostrarToast('✅ Pedido de envío marcado como ABONADO');
         }
         
-        await cargarPedidosTienda(); // Refresca la tabla de forma
+        await cargarPedidosTienda(); // Refresca la tabla de forma suave
+    } catch(e) {
+        console.error("Error en marcar abonado:", e);
+        mostrarToast('❌ No se pudo registrar el pago', true);
+    }
+}
     
 async function cancelarPedidoAdmin(id) {
     if(!confirm('¿Cancelar este pedido de forma definitiva? Se reincorporará el stock.')) return;
@@ -1420,7 +1425,7 @@ async function cancelarPedidoAdmin(id) {
         mostrarToast('❌ No se pudo cancelar el pedido', true);
     }
 }
-
+    
 // 1. BUSCA EL PEDIDO Y DIBUJA LA LISTA CON FOTOS
 async function verificarPINRetiro(){
     const p = document.getElementById('pin-retiro-input').value.trim();
