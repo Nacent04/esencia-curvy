@@ -1776,7 +1776,7 @@ async function eliminarCliente(clienteId, nombreCliente) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token') 
+                'Authorization': 'Bearer ' + adminToken
             },
             body: JSON.stringify({ 
                 id: clienteId, 
@@ -1787,17 +1787,15 @@ async function eliminarCliente(clienteId, nombreCliente) {
         const res = await response.json();
 
         if (res.success) {
-            alert('✨ Cliente eliminado con éxito de la base de datos.');
+            mostrarToast('✨ Cliente eliminado con éxito');
             if (typeof cargarClientes === 'function') cargarClientes();
-            else if (typeof listarClientes === 'function') listarClientes();
-            else if (typeof buscarClientes === 'function') buscarClientes();
             else window.location.reload(); 
         } else {
-            alert('❌ ' + (res.error || 'Ocurrió un error inesperado al intentar borrar.'));
+            mostrarToast('❌ ' + (res.error || 'Ocurrió un error inesperado al intentar borrar.'), true);
         }
     } catch (error) {
         console.error('Error en fetch al eliminar cliente:', error);
-        alert('❌ Error de red: No se pudo establecer conexión con el servidor.');
+        mostrarToast('❌ Error de red: No se pudo establecer conexión con el servidor.', true);
     }
 }
     
