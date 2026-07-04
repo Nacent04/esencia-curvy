@@ -699,7 +699,7 @@ app.post('/subir-logo', adminMiddleware('config'), upload.single('logo'), async 
 });
 app.post('/eliminar-logo', adminMiddleware('config'), async (req, res) => { await setConfig('logo', ''); res.json({ success: true }); });
 
-app.post('/listar-categories', async (req, res) => {
+app.post('/listar-categorias', async (req, res) => {
     const cats = (await pool.query('SELECT * FROM categorias')).rows;
     res.json({ lista: cats.map(c => ({ ...c, subcategorias: JSON.parse(c.subcategorias||'[]') })) });
 });
