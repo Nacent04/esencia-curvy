@@ -1266,6 +1266,127 @@ app.post('/admin/exportar-ventas', adminMiddleware(), async (req, res) => {
     res.send(csv);
 });
 
+app.post('/admin/costos/obtener-todos', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const rows = (await pool.query('SELECT * FROM costos_producto')).rows;
+        const costos = {};
+        rows.forEach(r => {
+            const adicionales = JSON.parse(r.adicionales || '[]');
+            const gastosAdicionales = adicionales.reduce((s,a)=>s+(a.monto||0),0);
+            const costoTotal = (r.costo||0) + (r.flete||0) + gastosAdicionales;
+            costos[r.productoId] = {
+                costoBase: r.costo || 0,
+                costoEnvio: r.flete || 0,
+                gastosAdicionales: adicionales,
+                costoTotal
+            };
+        });
+        res.json({ costos });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/admin/costos/guardar', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const { productoId, costoBase, costoEnvio, gastosAdicionales } = req.body;
+        const gastos = gastosAdicionales || [];
+        const costoTotal = (parseFloat(costoBase)||0) + (parseFloat(costoEnvio)||0) + gastos.reduce((s,a)=>s+(parseFloat(a.monto)||0),0);
+        const existe = (await pool.query('SELECT id FROM costos_producto WHERE "productoId"=$1', [productoId])).rows[0];
+        if (existe) {
+            await pool.query('UPDATE costos_producto SET costo=$1, flete=$2, adicionales=$3, "fechaActualizacion"=$4 WHERE "productoId"=$5',
+                [costoBase||0, costoEnvio||0, JSON.stringify(gastos), Date.now(), productoId]);
+        } else {
+            await pool.query('INSERT INTO costos_producto ("productoId", costo, flete, adicionales, "fechaActualizacion") VALUES ($1,$2,$3,$4,$5)',
+                [productoId, costoBase||0, costoEnvio||0, JSON.stringify(gastos), Date.now()]);
+        }
+        await logActividad(req.admin?.nombre || 'Admin', 'GUARDAR_COSTO_PRODUCTO', `Producto ${productoId}: costo total ${costoTotal}`, req);
+        res.json({ success: true, costoTotal });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/admin/rendimiento-productos', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const { desde, hasta } = req.body;
+        let query = 'SELECT * FROM ventas';
+        let params = [];
+        let conditions = [];
+        if (desde) { conditions.push(`"fechaTimestamp" >= $${params.length+1}`); params.push(new Date(desde+'T00:00:00').getTime()); }
+        if (hasta) { conditions.push(`"fechaTimestamp" <= $${params.length+1}`); params.push(new Date(hasta+'T23:59:59').getTime()); }
+        if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+        const ventas = (await pool.query(query, params)).rows;
+
+        const acumulado = {};
+        let totalIngresos = 0;
+        ventas.forEach(v => {
+            const items = typeof v.items === 'string' ? JSON.parse(v.items||'[]') : (v.items||[]);
+            items.forEach(it => {
+                if (it.esManual) return;
+                const pid = it.pId;
+                if (!acumulado[pid]) acumulado[pid] = { productoId: pid, nombre: it.pNom||'', unidades: 0, ventasAdmin: 0, ventasWeb: 0, ingresos: 0 };
+                acumulado[pid].unidades += it.cant||0;
+                acumulado[pid].ingresos += (it.precio||0) * (it.cant||0);
+                if (v.origen === 'admin') acumulado[pid].ventasAdmin += it.cant||0;
+                else acumulado[pid].ventasWeb += it.cant||0;
+                totalIngresos += (it.precio||0) * (it.cant||0);
+            });
+        });
+
+        const rendimiento = Object.values(acumulado).sort((a,b)=>b.ingresos-a.ingresos);
+        res.json({ rendimiento, totalIngresos, totalVentas: ventas.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/admin/rendimiento-total', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const { desde, hasta } = req.body;
+        let query = 'SELECT * FROM ventas';
+        let params = [];
+        let conditions = [];
+        if (desde) { conditions.push(`"fechaTimestamp" >= $${params.length+1}`); params.push(new Date(desde+'T00:00:00').getTime()); }
+        if (hasta) { conditions.push(`"fechaTimestamp" <= $${params.length+1}`); params.push(new Date(hasta+'T23:59:59').getTime()); }
+        if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+        const ventas = (await pool.query(query, params)).rows;
+
+        const costosRows = (await pool.query('SELECT * FROM costos_producto')).rows;
+        const costosMap = {};
+        costosRows.forEach(r => {
+            const adicionales = JSON.parse(r.adicionales || '[]');
+            const gastosAdicionales = adicionales.reduce((s,a)=>s+(a.monto||0),0);
+            costosMap[r.productoId] = (r.costo||0) + (r.flete||0) + gastosAdicionales;
+        });
+
+        let gananciaMenor=0, gananciaMayor=0, unidadesMenor=0, unidadesMayor=0, ingresosMenor=0, ingresosMayor=0;
+        let ventasConMenorSet = new Set(), ventasConMayorSet = new Set();
+
+        ventas.forEach(v => {
+            const items = typeof v.items === 'string' ? JSON.parse(v.items||'[]') : (v.items||[]);
+            let tieneMenor = false, tieneMayor = false;
+            items.forEach(it => {
+                if (it.esManual) return;
+                const costoTotal = costosMap[it.pId] || 0;
+                const esMayorista = it.precioOriginal && it.precio < it.precioOriginal;
+                const gan = (it.precio - costoTotal) * (it.cant||0);
+                const ingreso = (it.precio||0) * (it.cant||0);
+                if (esMayorista) {
+                    gananciaMayor += gan; unidadesMayor += it.cant||0; ingresosMayor += ingreso; tieneMayor = true;
+                } else {
+                    gananciaMenor += gan; unidadesMenor += it.cant||0; ingresosMenor += ingreso; tieneMenor = true;
+                }
+            });
+            if (tieneMenor) ventasConMenorSet.add(v.id);
+            if (tieneMayor) ventasConMayorSet.add(v.id);
+        });
+
+        res.json({
+            gananciaMenor, gananciaMayor, gananciaTotal: gananciaMenor + gananciaMayor,
+            unidadesMenor, unidadesMayor,
+            ventasConMenor: ventasConMenorSet.size, ventasConMayor: ventasConMayorSet.size,
+            ingresosMenor, ingresosMayor, ingresosTotal: ingresosMenor + ingresosMayor,
+            totalVentas: ventas.length
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
 app.post('/admin/apertura-caja-profesional', adminMiddleware('ventas'), async (req, res) => {
     try {
         const { montoEfectivo, montoTransferencia } = req.body;
