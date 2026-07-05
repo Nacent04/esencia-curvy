@@ -607,7 +607,34 @@ function toggleCartMobile() {
     }
 }
     
-function renderPaginaListadoVentas() { return `<div class="panel"><h3 style="display:flex;justify-content:space-between"><span><i class="fas fa-history"></i> Historial</span><button type="button" onclick="exportarVentasCSV()" class="tab-btn btn-excel"><i class="fas fa-file-csv"></i> Exportar</button></h3><div class="ventas-buscador"><input type="text" id="ventas-buscador" placeholder="🔍 Buscar..." onkeyup="filtrarVentas()"></div><table style="width:100%"><thead><tr><th>Fecha/ID</th><th>Cliente</th><th>Items</th><th>Total</th><th></th></tr></thead><tbody id="lista-ventas-body"></tbody></table></div>`; }
+function renderPaginaListadoVentas() {
+    return `<div class="panel" style="border:1px solid #FAEDCD">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+            <h3 style="display:flex;align-items:center;gap:10px;color:#4A3728;font-family:'Playfair Display',serif;font-size:22px;margin:0">
+                <i class="fas fa-history" style="color:#D4A373"></i> Historial de Ventas
+            </h3>
+            <button type="button" onclick="exportarVentasCSV()" class="tab-btn btn-excel" style="border-radius:50px;padding:10px 20px"><i class="fas fa-file-csv"></i> Exportar</button>
+        </div>
+        <div class="ventas-buscador" style="margin-bottom:20px">
+            <input type="text" id="ventas-buscador" placeholder="🔍 Buscar por cliente, ID o fecha..." onkeyup="filtrarVentas()" style="border-radius:50px;padding:14px 20px;width:100%">
+        </div>
+        <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:separate;border-spacing:0">
+                <thead>
+                    <tr style="background:#FEFAE0">
+                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">FECHA / ID</th>
+                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">CLIENTE</th>
+                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">ITEMS</th>
+                        <th style="padding:14px 16px;text-align:right;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">TOTAL</th>
+                        <th style="padding:14px 16px;text-align:right;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-ventas-body"></tbody>
+            </table>
+        </div>
+    </div>`;
+}
+    
 function renderPaginaGestionStock() { return `<div class="panel"><div style="display:flex;gap:12px;margin-bottom:24px"><button type="button" onclick="nuevoProd()" class="tab-btn"><i class="fas fa-plus"></i> Nuevo</button><button type="button" onclick="cargarYRenderAdmin()" class="tab-btn"><i class="fas fa-sync-alt"></i> Recargar</button><button type="button" onclick="verStockBajo()" class="tab-btn btn-warning"><i class="fas fa-exclamation-triangle"></i> Stock Bajo</button><button type="button" onclick="abrirModalCategorias()" class="tab-btn btn-info"><i class="fas fa-folder-tree"></i> Categorías</button></div><div id="admin-lista"></div></div>`; }
 
 function renderPaginaEstadisticas() { 
@@ -1090,7 +1117,39 @@ async function eliminarProducto(id){if(!confirm('¿Eliminar?'))return;await safe
 function nuevoProd(){let id=Date.now().toString();productos.unshift({id,nombre:"Nuevo",precio:0,precioMayor:0,variantes:[{nombre:"Unica",stock:0,foto:""}],descripcion:""});renderAdmin();}
 async function verStockBajo(){let d=await safeFetch('/stock-bajo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({minimo:5})});if(!d.stockBajo?.length)mostrarToast('✅ Stock OK');else mostrarToast(`⚠️ ${d.stockBajo.length} bajas`,true);}
 
-function renderVentas(){ const b=document.getElementById('lista-ventas-body'); if(!b)return; b.innerHTML=ventasHistorial.map(v=>`<tr><td><small>${v.fecha}</small><br><strong>${v.id}</strong></td><td>${v.cliente?.nombre||'Mostrador'}</td><td>${v.items.length}</td><td><strong>${fmt.format(v.pago.total)}</strong></td><td><button type="button" onclick="verDetalleVenta('${v.id}')" class="btn-print btn-info"><i class="fas fa-eye"></i></button> <button type="button" onclick="imprimirTicket('${v.id}','termico')" class="btn-print"><i class="fas fa-receipt"></i> Ticket</button> <button type="button" onclick="imprimirTicket('${v.id}','a4')" class="btn-print btn-excel"><i class="fas fa-file-pdf"></i> A4</button></td></tr>`).join(''); }
+function renderVentas(){
+    const b=document.getElementById('lista-ventas-body');
+    if(!b)return;
+    if(!ventasHistorial.length){
+        b.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#8B7355">No hay ventas registradas</td></tr>';
+        return;
+    }
+    b.innerHTML=ventasHistorial.map((v,i)=>`
+        <tr style="border-bottom:1px solid #FAEDCD;background:${i%2===0?'#ffffff':'#FEFAE0'};transition:background 0.2s"
+            onmouseover="this.style.background='#FAEDCD'"
+            onmouseout="this.style.background='${i%2===0?'#ffffff':'#FEFAE0'}'">
+            <td style="padding:14px 16px">
+                <div style="font-size:11px;color:#8B7355;margin-bottom:2px">${v.fecha}</div>
+                <strong style="font-size:13px;color:#4A3728">${v.id}</strong>
+            </td>
+            <td style="padding:14px 16px;font-size:13px;font-weight:600;color:#4A3728">
+                <i class="fas fa-user-circle" style="color:#D4A373;margin-right:6px"></i>${escapeHtml(v.cliente?.nombre||'Mostrador')}
+            </td>
+            <td style="padding:14px 16px;text-align:center">
+                <span style="background:#FAEDCD;color:#4A3728;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">${v.items.length}</span>
+            </td>
+            <td style="padding:14px 16px;text-align:right">
+                <strong style="font-size:15px;color:#D4A373">${fmt.format(v.pago.total)}</strong>
+            </td>
+            <td style="padding:14px 16px;text-align:right;white-space:nowrap">
+                <button type="button" onclick="verDetalleVenta('${v.id}')" class="btn-print btn-info" title="Ver detalle" style="border-radius:50%;width:32px;height:32px;padding:0"><i class="fas fa-eye"></i></button>
+                <button type="button" onclick="imprimirTicket('${v.id}','termico')" class="btn-print" title="Imprimir ticket" style="border-radius:50%;width:32px;height:32px;padding:0"><i class="fas fa-receipt"></i></button>
+                <button type="button" onclick="imprimirTicket('${v.id}','a4')" class="btn-print btn-excel" title="Descargar factura A4" style="border-radius:50%;width:32px;height:32px;padding:0"><i class="fas fa-file-pdf"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+    
 function filtrarVentas(){const t=document.getElementById('ventas-buscador').value.toLowerCase();document.querySelectorAll('#lista-ventas-body tr').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(t)?'':'none');}
 
 function verDetalleVenta(id){ 
