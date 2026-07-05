@@ -450,6 +450,8 @@ const generarPIN = () => Math.floor(1000 + Math.random() * 9000).toString();
     app.get('/' + p, (req, res) => res.sendFile(path.join(__dirname, 'public', p + '.html')))
 );
 
+app.get('/producto/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'producto.html')));
+
 app.get('/', (req, res) => res.redirect('/tienda'));
 
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -812,6 +814,16 @@ app.post('/tienda/listar-productos', async (req, res) => {
     const cats = (await pool.query('SELECT * FROM categorias')).rows;
     const metodos = (await pool.query('SELECT nombre FROM metodos_envio')).rows;
     res.json({ productos: prods, categorias: cats.map(x => ({ ...x, subcategorias: JSON.parse(x.subcategorias||'[]') })), metodosEnvio: metodos.map(m => m.nombre), configuracion: c });
+});
+
+app.get('/api/tienda/producto/:id', async (req, res) => {
+    try {
+        const p = (await pool.query('SELECT * FROM productos WHERE id=$1', [req.params.id])).rows[0];
+        if (!p) return res.status(404).json({ error: 'Producto no encontrado' });
+        p.variantes = (await pool.query('SELECT * FROM variantes WHERE "productoId"=$1', [p.id])).rows;
+        const c = await getConfig();
+        res.json({ producto: p, configuracion: c });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/tienda/crear-pedido', authMiddleware, async (req, res) => {
