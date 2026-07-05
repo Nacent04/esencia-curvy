@@ -118,7 +118,10 @@ async function initDB() {
                 "fechaCancelado" TEXT,
                 "fechaAbonado" TEXT,
                 "fechaEnviado" TEXT,
-                "fechaEntregado" TEXT
+                "fechaEntregado" TEXT,
+                "comprobanteUrl" TEXT DEFAULT '',
+                "clienteConfirmoPago" INTEGER DEFAULT 0,
+                "fechaConfirmacionCliente" TEXT
             );
             CREATE TABLE IF NOT EXISTS notificaciones (
                 id TEXT PRIMARY KEY,
@@ -206,6 +209,9 @@ async function initDB() {
     try {
         await pool.query("ALTER TABLE variantes ADD COLUMN IF NOT EXISTS foto_mobile TEXT DEFAULT ''");
         await pool.query('ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "carritoGuardado" TEXT DEFAULT \'[]\'');
+        await pool.query('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS "comprobanteUrl" TEXT DEFAULT \'\'');
+        await pool.query('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS "clienteConfirmoPago" INTEGER DEFAULT 0');
+        await pool.query('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS "fechaConfirmacionCliente" TEXT');
         console.log('✅ Columnas de base de datos verificadas con éxito');
     } catch(e) {
         console.log('⚠️ Aviso base de datos:', e.message);
@@ -874,6 +880,22 @@ app.post('/tienda/crear-pedido', authMiddleware, async (req, res) => {
         console.error('❌ Error crítico en el proceso de checkout:', e.message);
         return res.status(500).json({ error: 'Error interno del servidor al procesar el checkout.' });
     }
+});
+
+app.post('/tienda/subir-comprobante', authMiddleware, upload.single('comprobante'), async (req, res) => {
+    try {
+        const { pedidoId } = req.body;
+        if (!req.file) return res.status(400).json({ error: 'No se recibió ninguna imagen' });
+        const p = (await pool.query('SELECT * FROM pedidos WHERE id=$1 AND "usuarioId"=$2', [pedidoId, req.usuario.id])).rows[0];
+        if (!p) { fs.unlinkSync(req.file.path); return res.status(404).json({ error: 'Pedido no encontrado' }); }
+        const r = await cloudinary.uploader.upload(req.file.path, { folder: 'esencia-curvy/comprobantes' });
+        fs.unlinkSync(req.file.path);
+        await pool.query('UPDATE pedidos SET "comprobanteUrl"=$1, "clienteConfirmoPago"=1, "fechaConfirmacionCliente"=TO_CHAR(NOW(),\'DD/MM/YYYY HH24:MI:SS\') WHERE id=$2', [r.secure_url, pedidoId]);
+        const cliente = JSON.parse(p.cliente||'{}');
+        await crearNotificacion('pedido', '💳 Comprobante recibido', `${cliente.nombre||'Cliente'} confirmó el pago del pedido ${pedidoId}`);
+        await logActividad(cliente.nombre||'Cliente', 'COMPROBANTE_SUBIDO', `Pedido ${pedidoId}`, req);
+        res.json({ success: true, url: r.secure_url });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/tienda/listar-pedidos', async (req, res) => {
