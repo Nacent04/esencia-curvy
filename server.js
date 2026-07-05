@@ -450,7 +450,13 @@ const generarPIN = () => Math.floor(1000 + Math.random() * 9000).toString();
     app.get('/' + p, (req, res) => res.sendFile(path.join(__dirname, 'public', p + '.html')))
 );
 
-app.get('/producto/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'producto.html')));
+app.get('/producto/:id', (req, res) => {
+    const filePath = path.join(__dirname, 'public', 'producto.html');
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).send('<h2 style="font-family:sans-serif;text-align:center;margin-top:60px">⚠️ Falta subir el archivo producto.html a la carpeta /public del servidor</h2>');
+    }
+    res.sendFile(filePath);
+});
 
 app.get('/', (req, res) => res.redirect('/tienda'));
 
