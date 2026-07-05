@@ -245,16 +245,47 @@
             </button>
         </div>
 
+        <div class="step-card" id="paso-pago" style="display:none">
+            <h2><i class="fas fa-university"></i> Paso 4: Datos para Transferencia</h2>
+            <div id="datos-bancarios" style="background:#FDF8F4;border-radius:16px;padding:20px;margin-bottom:20px"></div>
+            <div style="background:#FFF8E1;border:1px solid #FFE082;border-radius:14px;padding:14px;margin-bottom:20px;font-size:13px;color:#8B6F00">
+                <i class="fas fa-info-circle"></i> Realizá la transferencia por el monto total y subí una <strong>captura de pantalla del comprobante</strong> (formato imagen: JPG o PNG).
+            </div>
+            <div class="form-group">
+                <label>Comprobante de Pago *</label>
+                <input type="file" id="input-comprobante" accept="image/*" onchange="previsualizarComprobante(this)">
+            </div>
+            <div id="preview-comprobante" style="display:none;margin:12px 0;text-align:center">
+                <img id="img-preview-comprobante" style="max-width:220px;max-height:220px;border-radius:12px;border:2px solid #F0E6DC">
+            </div>
+            <button class="btn-confirm" id="btn-confirmar-pago" onclick="confirmarPagoComprobante()">
+                <i class="fas fa-paper-plane"></i> Confirmar Pago
+            </button>
+            <button type="button" onclick="irADespuesTienda()" style="width:100%;background:none;border:none;color:var(--text-light);padding:12px;margin-top:8px;cursor:pointer;font-size:13px;text-decoration:underline">
+                Subir el comprobante más tarde desde "Mis Compras"
+            </button>
+        </div>
+
+        <div class="step-card" id="paso-exito" style="display:none;text-align:center;padding:40px">
+            <i class="fas fa-check-circle" style="font-size:56px;color:var(--success);margin-bottom:16px"></i>
+            <h2 style="border:none;justify-content:center">¡Comprobante enviado!</h2>
+            <p style="color:var(--text-light);margin-bottom:20px">Tu pago quedó a la espera de confirmación del local. Te avisaremos en "Mis Compras" cuando esté validado.</p>
+            <button class="btn-confirm" onclick="window.location.href='/mis-pedidos'"><i class="fas fa-receipt"></i> Ver Mis Compras</button>
+        </div>
+
     </div>
 
     <div id="toast-container"></div>
 
     <script>
-        let listadoCarrito = [];
+         let listadoCarrito = [];
         let metodoEntrega = 'local';
         let empresasEnvioDisponibles = [];
+        let configuracionGlobal = {};
+        let pedidoCreadoId = null;
+        let archivoComprobante = null;
         const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
-
+        
         function sanitizarUrlImagen(url) {
             if (!url) return 'https://via.placeholder.com/60x70/FAEDCD/4A3728?text=Curvy';
             if (url.startsWith('/uploads/') || url.startsWith('http')) return url;
@@ -292,11 +323,12 @@
                 document.getElementById('c-cp').value = usuario.cp || usuario.Cp || '';
                 document.getElementById('c-direccion').value = usuario.direccion || usuario.Direccion || '';
 
-                // 2. Cargar transportes dinámicos
+                // 2. Cargar transportes dinámicos y datos de pago
                 const resTienda = await fetch('/tienda/listar-productos', { method: 'POST' });
                 if (resTienda.ok) {
                     const dataTienda = await resTienda.json();
                     empresasEnvioDisponibles = dataTienda.metodosEnvio || [];
+                    configuracionGlobal = dataTienda.configuracion || {};
                     popularSelectorEnvios();
                 }
 
@@ -346,6 +378,84 @@
                 html += `<option value="${m}">${m}</option>`;
             });
             select.innerHTML = html;
+        }
+
+        function renderDatosBancarios() {
+            let pagos = configuracionGlobal.pagos || {};
+            if (typeof pagos === 'string') { try { pagos = JSON.parse(pagos); } catch(e) { pagos = {}; } }
+            const cont = document.getElementById('datos-bancarios');
+            if (!pagos.alias && !pagos.cbu && !pagos.banco) {
+                cont.innerHTML = '<p style="font-size:13px;color:var(--text-light)">El local aún no cargó sus datos de transferencia. Contactanos por WhatsApp para coordinar el pago.</p>';
+                return;
+            }
+            cont.innerHTML = `
+                ${pagos.banco ? `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #E8DCD2"><span style="color:var(--text-light);font-size:13px">Banco</span><strong>${pagos.banco}</strong></div>` : ''}
+                ${pagos.titular ? `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #E8DCD2"><span style="color:var(--text-light);font-size:13px">Titular</span><strong>${pagos.titular}</strong></div>` : ''}
+                ${pagos.cbu ? `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #E8DCD2"><span style="color:var(--text-light);font-size:13px">CBU/CVU</span><strong style="user-select:all">${pagos.cbu}</strong></div>` : ''}
+                ${pagos.alias ? `<div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--text-light);font-size:13px">Alias</span><strong style="user-select:all">${pagos.alias}</strong></div>` : ''}
+            `;
+        }
+
+        function previsualizarComprobante(input) {
+            const file = input.files[0];
+            if (!file) { archivoComprobante = null; return; }
+            if (!file.type.startsWith('image/')) {
+                mostrarToast('❌ El comprobante debe ser una imagen (JPG o PNG)', true);
+                input.value = '';
+                archivoComprobante = null;
+                return;
+            }
+            archivoComprobante = file;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('img-preview-comprobante').src = e.target.result;
+                document.getElementById('preview-comprobante').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function confirmarPagoComprobante() {
+            if (!archivoComprobante) {
+                mostrarToast('❌ Subí la captura del comprobante antes de confirmar', true);
+                return;
+            }
+            if (!pedidoCreadoId) {
+                mostrarToast('❌ No se encontró el pedido. Recargá la página.', true);
+                return;
+            }
+            const btn = document.getElementById('btn-confirmar-pago');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando comprobante...';
+
+            try {
+                const token = localStorage.getItem('token');
+                const fd = new FormData();
+                fd.append('comprobante', archivoComprobante);
+                fd.append('pedidoId', pedidoCreadoId);
+                const res = await fetch('/tienda/subir-comprobante', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: fd
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('paso-pago').style.display = 'none';
+                    document.getElementById('paso-exito').style.display = 'block';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    mostrarToast('❌ ' + (data.error || 'No se pudo enviar el comprobante'), true);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
+                }
+            } catch(e) {
+                mostrarToast('❌ Error de red al enviar el comprobante', true);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Pago';
+            }
+        }
+
+        function irADespuesTienda() {
+            window.location.href = '/tienda';
         }
 
         function cambiarMetodoEntrega(tipo) {
@@ -444,6 +554,8 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    pedidoCreadoId = data.pedidoId;
+
                     // 1. Limpiamos el carrito en la base de datos de Railway
                     await fetch('/api/guardar-carrito', {
                         method: 'POST',
@@ -460,19 +572,18 @@
                     
                     mostrarToast('✨ ¡Pedido confirmado con éxito!');
                     
-                    // 3. Volvemos a la tienda con el carrito totalmente vacío
-                    setTimeout(() => window.location.href = '/tienda', 2500);
+                    // 3. Mostramos los datos de pago y el paso de subir comprobante
+                    document.querySelectorAll('#main-checkout > .step-card').forEach(c => {
+                        if (c.id !== 'paso-pago' && c.id !== 'paso-exito') c.style.display = 'none';
+                    });
+                    renderDatosBancarios();
+                    document.getElementById('paso-pago').style.display = 'block';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     alert('❌ Ocurrió un inconveniente: ' + data.error);
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-check-circle"></i> Finalizar Compra';
                 }
-            } catch (err) {
-                alert('❌ Error de red: No se pudo conectar con el servidor.');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check-circle"></i> Finalizar Compra';
-            }
-        }
 
         function mostrarToast(mensaje, esError = false) {
             const container = document.getElementById('toast-container');
