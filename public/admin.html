@@ -2269,280 +2269,475 @@ async function subirFotoColorMasivo(input, pid, color, tipo) {
     }
 }
 
-let productosRendimiento = [];
+let productosRendimiento = [], costosProductos = {};
 
 function renderPaginaRendimiento() {
-    return `<div class="panel">
-        <h3 style="margin-bottom:20px"><i class="fas fa-chart-line"></i> Rendimiento de Productos</h3>
-        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-            <input type="text" id="rendimiento-buscador" placeholder="🔍 Buscar producto..." onkeyup="filtrarRendimiento()" style="flex:1;min-width:200px">
-            <button type="button" onclick="cargarProductosRendimiento()" class="tab-btn"><i class="fas fa-sync-alt"></i> Recargar</button>
+    return `<div style="display:flex;flex-direction:column;gap:20px;width:100%">
+        <div style="background:linear-gradient(135deg,#4A3728,#6B5344);border-radius:28px;padding:32px 36px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+            <div>
+                <h2 style="margin:0;color:#fff;font-family:'Playfair Display',serif;font-size:26px;display:flex;align-items:center;gap:12px"><i class="fas fa-chart-line" style="color:#D4A373"></i> Rendimiento de Artículos</h2>
+                <p style="margin:6px 0 0;font-size:13px;color:#FAEDCD;opacity:0.8">Ventas por producto — admin y tienda web</p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <button onclick="abrirModalRendimientoTotal()" style="background:rgba(212,163,115,0.2);border:1px solid #D4A373;color:#D4A373;padding:10px 20px;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px"><i class="fas fa-calculator"></i> Rendimiento Total</button>
+                <span id="rend-total-badge" style="background:rgba(212,163,115,0.2);border:1px solid #D4A373;color:#D4A373;padding:8px 18px;border-radius:50px;font-size:13px;font-weight:600"><i class="fas fa-box"></i> Cargando...</span>
+            </div>
         </div>
-        <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:separate;border-spacing:0">
-                <thead>
-                    <tr style="background:#FEFAE0">
-                        <th style="padding:14px 16px;text-align:left;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">PRODUCTO</th>
-                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">COSTO</th>
-                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">GASTOS</th>
-                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">COSTO TOTAL</th>
-                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">PRECIO MENOR</th>
-                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">GAN. MENOR</th>
-                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">PRECIO MAY.</th>
-                        <th style="padding:14px 16px;text-align:center;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">GAN. MAY.</th>
-                        <th style="padding:14px 16px;text-align:right;font-size:12px;font-weight:600;color:#4A3728;border-bottom:2px solid #FAEDCD">ACCIONES</th>
-                    </tr>
-                </thead>
-                <tbody id="rendimiento-body">
-                    <tr><td colspan="9" style="text-align:center;padding:40px">Cargando productos...</td></tr>
-                </tbody>
-            </table>
+
+        <div class="panel" style="padding:20px">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+                <div style="flex:1;min-width:220px;position:relative">
+                    <i class="fas fa-search" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#D4A373;font-size:14px"></i>
+                    <input type="text" id="rendimiento-buscador" placeholder="Buscar artículo..." onkeyup="filtrarRendimiento()" style="padding:13px 16px 13px 42px;border-radius:50px;border:1px solid #FAEDCD;width:100%;font-size:13px">
+                </div>
+                <select id="rendimiento-filtro-stock" onchange="filtrarRendimiento()" style="padding:13px 16px;border-radius:50px;border:1px solid #FAEDCD;font-size:13px;background:#fff;cursor:pointer">
+                    <option value="todos">Todos los estados</option>
+                    <option value="con_stock">Con stock</option>
+                    <option value="sin_stock">Sin stock</option>
+                    <option value="stock_bajo">Stock bajo (≤5)</option>
+                </select>
+                <select id="rendimiento-orden" onchange="filtrarRendimiento()" style="padding:13px 16px;border-radius:50px;border:1px solid #FAEDCD;font-size:13px;background:#fff;cursor:pointer">
+                    <option value="nombre">Ordenar: A-Z</option>
+                    <option value="precio_asc">Precio: menor a mayor</option>
+                    <option value="precio_desc">Precio: mayor a menor</option>
+                    <option value="stock_desc">Mayor stock primero</option>
+                    <option value="stock_asc">Menor stock primero</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="rendimiento-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px"></div>
+        <div id="rendimiento-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
+            <div style="grid-column:1/-1;text-align:center;padding:48px;color:#8B7355">
+                <i class="fas fa-spinner fa-spin" style="font-size:32px;margin-bottom:12px;color:#D4A373;display:block"></i>Cargando artículos...
+            </div>
         </div>
     </div>`;
 }
 
 async function cargarProductosRendimiento() {
     try {
-        const d = await safeFetch('/listar', {method:'POST'});
+        const [d, c] = await Promise.all([
+            safeFetch('/listar', { method: 'POST' }),
+            safeFetch('/admin/costos/obtener-todos', { method: 'POST' })
+        ]);
         productosRendimiento = d.lista || [];
-        const costos = await safeFetch('/admin/listar-costos', {method:'POST'});
-        if (costos.lista) {
-            costos.lista.forEach(c => {
-                const prod = productosRendimiento.find(p => p.id == c.productoId);
-                if (prod) {
-                    prod.costoData = {
-                        costo: c.costo || 0,
-                        flete: c.flete || 0,
-                        adicionales: JSON.parse(c.adicionales || '[]')
-                    };
-                }
-            });
-        }
+        costosProductos = c.costos || {};
         renderizarRendimiento(productosRendimiento);
-    } catch(e) {
-        document.getElementById('rendimiento-body').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#ef4444">Error al cargar</td></tr>';
+    } catch(e) {}
+}
+
+function toggleEditorCosto(pid) {
+    const editor = document.getElementById(`editor-costo-${pid}`);
+    if (!editor) return;
+    const isOpen = editor.style.display !== 'none';
+    editor.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+        const costo = costosProductos[pid];
+        if (document.getElementById(`costo-base-${pid}`)) document.getElementById(`costo-base-${pid}`).value = costo?.costoBase || 0;
+        if (document.getElementById(`costo-envio-${pid}`)) document.getElementById(`costo-envio-${pid}`).value = costo?.costoEnvio || 0;
+        const container = document.getElementById(`gastos-adicionales-${pid}`);
+        if (container) { container.innerHTML = ''; (costo?.gastosAdicionales||[]).forEach(g => { const div = document.createElement('div'); div.className='gasto-fila'; div.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px'; div.innerHTML=`<input type="text" class="gasto-nombre" value="${escapeHtml(g.nombre)}" placeholder="Nombre gasto..." style="flex:1;padding:7px 12px;border:1px solid #FAEDCD;border-radius:50px;font-size:12px"><input type="number" class="gasto-monto" value="${g.monto}" oninput="calcularCostoTotal('${pid}')" style="width:90px;padding:7px 10px;border:1px solid #FAEDCD;border-radius:50px;font-size:12px;text-align:right"><button onclick="this.closest('.gasto-fila').remove();calcularCostoTotal('${pid}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:15px"><i class="fas fa-times-circle"></i></button>`; container.appendChild(div); }); }
+        calcularCostoTotal(pid);
     }
+}
+
+function agregarFilaGasto(pid) {
+    const container = document.getElementById(`gastos-adicionales-${pid}`);
+    if (!container) return;
+    const div = document.createElement('div'); div.className='gasto-fila'; div.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
+    div.innerHTML=`<input type="text" class="gasto-nombre" placeholder="Ej: Bolsa, flete..." style="flex:1;padding:7px 12px;border:1px solid #FAEDCD;border-radius:50px;font-size:12px"><input type="number" class="gasto-monto" placeholder="0" oninput="calcularCostoTotal('${pid}')" style="width:90px;padding:7px 10px;border:1px solid #FAEDCD;border-radius:50px;font-size:12px;text-align:right"><button onclick="this.closest('.gasto-fila').remove();calcularCostoTotal('${pid}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:15px"><i class="fas fa-times-circle"></i></button>`;
+    container.appendChild(div);
+}
+
+function calcularCostoTotal(pid) {
+    const base = parseFloat(document.getElementById(`costo-base-${pid}`)?.value)||0;
+    const envio = parseFloat(document.getElementById(`costo-envio-${pid}`)?.value)||0;
+    let gastos = 0;
+    document.querySelectorAll(`#gastos-adicionales-${pid} .gasto-monto`).forEach(inp => { gastos += parseFloat(inp.value)||0; });
+    const total = base + envio + gastos;
+    const totalEl = document.getElementById(`costo-total-${pid}`);
+    if (totalEl) totalEl.textContent = fmt.format(total);
+    const p = productosRendimiento.find(x => x.id == pid);
+    if (p) {
+        const gmc = document.getElementById(`gan-menor-calc-${pid}`);
+        const gmayc = document.getElementById(`gan-mayor-calc-${pid}`);
+        if (gmc) { const g = p.precio-total; gmc.textContent=fmt.format(g); gmc.style.color=g>=0?'#10b981':'#ef4444'; }
+        if (gmayc && p.precioMayor>0) { const g = p.precioMayor-total; gmayc.textContent=fmt.format(g); gmayc.style.color=g>=0?'#10b981':'#ef4444'; }
+    }
+}
+
+async function guardarCostoProducto(pid) {
+    const base = parseFloat(document.getElementById(`costo-base-${pid}`)?.value)||0;
+    const envio = parseFloat(document.getElementById(`costo-envio-${pid}`)?.value)||0;
+    const gastos = [];
+    document.querySelectorAll(`#gastos-adicionales-${pid} .gasto-fila`).forEach(fila => { const nombre=fila.querySelector('.gasto-nombre')?.value?.trim(); const monto=parseFloat(fila.querySelector('.gasto-monto')?.value)||0; if(nombre) gastos.push({nombre,monto}); });
+    try {
+        const res = await safeFetch('/admin/costos/guardar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({productoId:pid,costoBase:base,costoEnvio:envio,gastosAdicionales:gastos}) });
+        if (res.success) { costosProductos[pid]={costoBase:base,costoEnvio:envio,gastosAdicionales:gastos,costoTotal:res.costoTotal}; mostrarToast(`✅ Costo guardado: ${fmt.format(res.costoTotal)}`); document.getElementById(`editor-costo-${pid}`).style.display='none'; renderizarRendimiento(productosRendimiento); }
+    } catch(e) { mostrarToast('❌ Error al guardar costo', true); }
 }
 
 function renderizarRendimiento(lista) {
-    const tbody = document.getElementById('rendimiento-body');
+    const totalProductos = lista.length;
+    const totalStock = lista.reduce((s, p) => s + (p.variantes?.reduce((vs, v) => vs + (v.stock||0), 0)||0), 0);
+    const sinStock = lista.filter(p => p.variantes?.every(v => v.stock===0)).length;
+    const stockBajo = lista.filter(p => p.variantes?.some(v => v.stock>0&&v.stock<=5) && !p.variantes?.every(v => v.stock===0)).length;
+    const conCosto = lista.filter(p => costosProductos[p.id]).length;
+
+    const badge = document.getElementById('rend-total-badge');
+    if (badge) badge.innerHTML = `<i class="fas fa-box"></i> ${totalProductos} artículos`;
+
+    const statsDiv = document.getElementById('rendimiento-stats');
+    if (statsDiv) statsDiv.innerHTML = `
+        <div class="stat-card" style="border-left:4px solid #D4A373"><i class="fas fa-boxes" style="color:#D4A373;font-size:26px;margin-bottom:8px"></i><h3>${totalProductos}</h3><p style="color:#8B7355;font-size:12px">En catálogo</p></div>
+        <div class="stat-card" style="border-left:4px solid #10b981"><i class="fas fa-warehouse" style="color:#10b981;font-size:26px;margin-bottom:8px"></i><h3>${totalStock}</h3><p style="color:#8B7355;font-size:12px">Unidades stock</p></div>
+        <div class="stat-card" style="border-left:4px solid #f59e0b"><i class="fas fa-exclamation-triangle" style="color:#f59e0b;font-size:26px;margin-bottom:8px"></i><h3>${stockBajo}</h3><p style="color:#8B7355;font-size:12px">Stock bajo</p></div>
+        <div class="stat-card" style="border-left:4px solid #ef4444"><i class="fas fa-times-circle" style="color:#ef4444;font-size:26px;margin-bottom:8px"></i><h3>${sinStock}</h3><p style="color:#8B7355;font-size:12px">Sin stock</p></div>
+        <div class="stat-card" style="border-left:4px solid #4A3728"><i class="fas fa-calculator" style="color:#4A3728;font-size:26px;margin-bottom:8px"></i><h3>${conCosto}</h3><p style="color:#8B7355;font-size:12px">Con costo cargado</p></div>
+    `;
+
+    const grid = document.getElementById('rendimiento-grid');
+    if (!grid) return;
     if (!lista.length) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#8B7355">No hay productos</td></tr>';
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:#8B7355"><i class="fas fa-box-open" style="font-size:40px;margin-bottom:12px;display:block;opacity:0.4"></i>No se encontraron artículos</div>`;
         return;
     }
-    tbody.innerHTML = lista.map((p, i) => {
-        const cd = p.costoData || { costo: 0, flete: 0, adicionales: [] };
-        const gastosAdicionales = cd.adicionales.reduce((s, a) => s + (a.monto || 0), 0);
-        const costoTotal = (cd.costo || 0) + (cd.flete || 0) + gastosAdicionales;
-        const ganMenor = p.precio - costoTotal;
-        const ganMayor = (p.precioMayor || p.precio) - costoTotal;
-        
-        return `<tr style="border-bottom:1px solid #FAEDCD;background:${i%2===0?'#ffffff':'#FEFAE0'};transition:background 0.2s" 
-            onmouseover="this.style.background='#FAEDCD'" onmouseout="this.style.background='${i%2===0?'#ffffff':'#FEFAE0'}'">
-            <td style="padding:12px 14px;font-size:13px;font-weight:600">${escapeHtml(p.nombre)}</td>
-            <td style="padding:12px 14px;text-align:center;font-size:13px">${fmt.format(cd.costo)}</td>
-            <td style="padding:12px 14px;text-align:center;font-size:13px">${fmt.format((cd.flete||0) + gastosAdicionales)}</td>
-            <td style="padding:12px 14px;text-align:center;font-weight:700;font-size:13px;color:#4A3728">${fmt.format(costoTotal)}</td>
-            <td style="padding:12px 14px;text-align:center;font-size:13px">${fmt.format(p.precio)}</td>
-            <td style="padding:12px 14px;text-align:center;font-weight:700;font-size:14px;color:${ganMenor>=0?'#10b981':'#ef4444'}">${fmt.format(ganMenor)}</td>
-            <td style="padding:12px 14px;text-align:center;font-size:13px">${fmt.format(p.precioMayor||p.precio)}</td>
-            <td style="padding:12px 14px;text-align:center;font-weight:700;font-size:14px;color:${ganMayor>=0?'#10b981':'#ef4444'}">${fmt.format(ganMayor)}</td>
-            <td style="padding:12px 14px;display:flex;gap:6px;justify-content:flex-end">
-                <button type="button" onclick="editarCostos('${p.id}')" class="btn-print" style="padding:6px 10px;font-size:10px;background:#D4A373"><i class="fas fa-edit"></i> Costos</button>
-                <button type="button" onclick="verRendimientoHistorico('${p.id}')" class="btn-print btn-info" style="padding:6px 10px;font-size:10px"><i class="fas fa-history"></i> Histórico</button>
-            </td>
-        </tr>`;
+
+    grid.innerHTML = lista.map(p => {
+        const stockTotal = p.variantes?.reduce((s, v) => s + (v.stock||0), 0) || 0;
+        const fotoPreview = p.variantes?.[0]?.foto || '';
+        const tieneMayor = p.precioMayor > 0;
+        const costo = costosProductos[p.id];
+        let estadoStock, colorEstado, iconoEstado;
+        if (stockTotal===0) { estadoStock='Sin stock'; colorEstado='#ef4444'; iconoEstado='fa-times-circle'; }
+        else if (stockTotal<=5) { estadoStock='Stock bajo'; colorEstado='#f59e0b'; iconoEstado='fa-exclamation-triangle'; }
+        else { estadoStock='Disponible'; colorEstado='#10b981'; iconoEstado='fa-check-circle'; }
+
+        const variantesHTML = (p.variantes||[]).slice(0,4).map(v => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:${v.stock===0?'#FEE2E2':v.stock<=5?'#FEF3C7':'#FAEDCD'};border-radius:8px;font-size:11px">
+                <span style="font-weight:600;color:#4A3728;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">${escapeHtml(v.nombre)}</span>
+                <span style="font-weight:700;color:${v.stock===0?'#ef4444':v.stock<=5?'#f59e0b':'#10b981'};flex-shrink:0;margin-left:6px">${v.stock} u.</span>
+            </div>`).join('');
+        const masV = (p.variantes?.length||0)>4 ? `<div style="text-align:center;font-size:10px;color:#8B7355;margin-top:4px">+${p.variantes.length-4} más</div>` : '';
+
+        const costoDisplay = costo ? `
+            <div style="background:#FAEDCD;border-radius:12px;padding:10px 14px">
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:#8B7355">Costo Total:</span><strong style="color:#4A3728">${fmt.format(costo.costoTotal)}</strong></div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:${tieneMayor?'4px':'0'}">
+                    <span style="color:#8B7355">Gan. x Menor:</span>
+                    <strong style="color:${p.precio-costo.costoTotal>=0?'#10b981':'#ef4444'}">${fmt.format(p.precio-costo.costoTotal)}</strong>
+                </div>
+                ${tieneMayor?`<div style="display:flex;justify-content:space-between;font-size:11px">
+                    <span style="color:#8B7355">Gan. x Mayor:</span>
+                    <strong style="color:${p.precioMayor-costo.costoTotal>=0?'#10b981':'#ef4444'}">${fmt.format(p.precioMayor-costo.costoTotal)}</strong>
+                </div>`:''}
+            </div>` : `
+            <div style="background:#FEF3C7;border:1px dashed #f59e0b;border-radius:12px;padding:10px;text-align:center;font-size:11px;color:#8B7355">
+                <i class="fas fa-exclamation-triangle" style="color:#f59e0b;margin-right:4px"></i> Sin costo cargado aún
+            </div>`;
+
+        return `<div style="background:#fff;border-radius:24px;border:1px solid #FAEDCD;overflow:hidden;transition:all 0.3s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(74,55,40,0.1)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+
+            <div style="display:flex;gap:12px;padding:16px;border-bottom:1px solid #FAEDCD;align-items:center">
+                <div style="width:60px;height:60px;border-radius:12px;background:#FAEDCD;overflow:hidden;flex-shrink:0;border:1px solid #FAEDCD">
+                    ${fotoPreview?`<img src="${sanitizarUrl(fotoPreview)}" style="width:100%;height:100%;object-fit:cover">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#D4A373;font-size:20px"><i class="fas fa-image"></i></div>`}
+                </div>
+                <div style="flex:1;min-width:0">
+                    <h4 style="margin:0 0 5px;font-size:13px;font-weight:700;color:#4A3728;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.nombre)}</h4>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap">
+                        <span style="background:${colorEstado}20;color:${colorEstado};font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px"><i class="fas ${iconoEstado}"></i> ${estadoStock}</span>
+                        <span style="background:#FAEDCD;color:#8B7355;font-size:10px;font-weight:600;padding:2px 8px;border-radius:50px">${p.variantes?.length||0} variantes</span>
+                        ${tieneMayor?`<span style="background:#D1FAE5;color:#065f46;font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px">MAYORISTA</span>`:''}
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding:12px 16px;border-bottom:1px solid #FAEDCD">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                    <div style="background:#FAEDCD;border-radius:12px;padding:10px;text-align:center">
+                        <div style="font-size:9px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Precio Menor</div>
+                        <div style="font-size:15px;font-weight:800;color:#4A3728">${fmt.format(p.precio||0)}</div>
+                    </div>
+                    <div style="background:${tieneMayor?'#D1FAE5':'#FAEDCD'};border-radius:12px;padding:10px;text-align:center">
+                        <div style="font-size:9px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Precio Mayor</div>
+                        <div style="font-size:15px;font-weight:800;color:${tieneMayor?'#065f46':'#CBD5E1'}">${tieneMayor?fmt.format(p.precioMayor):'—'}</div>
+                    </div>
+                </div>
+                <div style="background:#4A3728;border-radius:12px;padding:8px;text-align:center">
+                    <div style="font-size:9px;font-weight:700;color:#D4A373;text-transform:uppercase;letter-spacing:0.5px">Stock Total</div>
+                    <div style="font-size:18px;font-weight:800;color:${colorEstado}">${stockTotal} u.</div>
+                </div>
+            </div>
+
+            <div style="padding:10px 16px;border-bottom:1px solid #FAEDCD;display:flex;flex-direction:column;gap:5px">
+                <div style="font-size:9px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Variantes</div>
+                ${variantesHTML}${masV}
+            </div>
+
+            <div style="padding:12px 16px;border-bottom:1px solid #FAEDCD">
+                <div style="font-size:9px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Costos y Ganancias</div>
+                ${costoDisplay}
+                <div id="editor-costo-${p.id}" style="display:none;margin-top:10px;background:#FEFAE0;border:1px solid #FAEDCD;border-radius:16px;padding:14px">
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;font-weight:600;color:#4A3728;display:block;margin-bottom:4px"><i class="fas fa-tag" style="color:#D4A373"></i> Costo Base</label>
+                        <input type="number" id="costo-base-${p.id}" placeholder="0" oninput="calcularCostoTotal('${p.id}')" style="width:100%;padding:8px 14px;border:1px solid #FAEDCD;border-radius:50px;font-size:13px">
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;font-weight:600;color:#4A3728;display:block;margin-bottom:4px"><i class="fas fa-truck" style="color:#D4A373"></i> Costo de Envío</label>
+                        <input type="number" id="costo-envio-${p.id}" placeholder="0" oninput="calcularCostoTotal('${p.id}')" style="width:100%;padding:8px 14px;border:1px solid #FAEDCD;border-radius:50px;font-size:13px">
+                    </div>
+                    <div style="margin-bottom:10px">
+                        <label style="font-size:11px;font-weight:600;color:#4A3728;display:block;margin-bottom:6px"><i class="fas fa-plus-circle" style="color:#D4A373"></i> Gastos Adicionales</label>
+                        <div id="gastos-adicionales-${p.id}" style="display:flex;flex-direction:column;gap:6px"></div>
+                        <button onclick="agregarFilaGasto('${p.id}')" style="width:100%;margin-top:8px;padding:8px;border:2px dashed #D4A373;border-radius:12px;background:none;color:#D4A373;cursor:pointer;font-weight:700;font-size:12px">
+                            <i class="fas fa-plus"></i> Agregar Gasto
+                        </button>
+                    </div>
+                    <div style="background:#4A3728;border-radius:12px;padding:10px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+                        <span style="color:#FAEDCD;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">Costo Total</span>
+                        <strong style="color:#D4A373;font-size:18px" id="costo-total-${p.id}">${fmt.format(costo?.costoTotal||0)}</strong>
+                    </div>
+                    <div style="display:grid;grid-template-columns:${tieneMayor?'1fr 1fr':'1fr'};gap:8px;margin-bottom:12px">
+                        <div style="background:#D1FAE5;border-radius:10px;padding:10px;text-align:center">
+                            <div style="font-size:9px;font-weight:700;color:#065f46;text-transform:uppercase;margin-bottom:3px">Gan. x Menor</div>
+                            <div style="font-weight:800;color:#065f46;font-size:14px" id="gan-menor-calc-${p.id}">—</div>
+                        </div>
+                        ${tieneMayor?`<div style="background:#FAEDCD;border-radius:10px;padding:10px;text-align:center">
+                            <div style="font-size:9px;font-weight:700;color:#4A3728;text-transform:uppercase;margin-bottom:3px">Gan. x Mayor</div>
+                            <div style="font-weight:800;color:#4A3728;font-size:14px" id="gan-mayor-calc-${p.id}">—</div>
+                        </div>`:''}
+                    </div>
+                    <button onclick="guardarCostoProducto('${p.id}')" class="btn-confirm" style="width:100%;padding:11px;font-size:12px;border-radius:50px">
+                        <i class="fas fa-save"></i> Guardar Costo
+                    </button>
+                </div>
+            </div>
+
+            <div style="padding:10px 16px;display:flex;flex-direction:column;gap:8px">
+                <button onclick="toggleEditorCosto('${p.id}')" style="width:100%;padding:11px;font-size:12px;border-radius:50px;background:${costo?'#D1FAE5':'#FEF3C7'};color:${costo?'#065f46':'#B45309'};border:2px solid ${costo?'#10b981':'#f59e0b'};font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+                    <i class="fas fa-calculator"></i> ${costo?'Ver / Editar Costos':'+ Cargar Costo'}
+                </button>
+                <button onclick="tab('a')" style="width:100%;padding:10px;font-size:11px;border-radius:50px;background:#FAEDCD;color:#4A3728;border:none;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px">
+                    <i class="fas fa-edit"></i> Editar en Stock
+                </button>
+                <button onclick="verRendimientoProducto('${p.id}','${escapeHtml(p.nombre)}')" style="width:100%;padding:10px;font-size:11px;border-radius:50px;background:linear-gradient(135deg,#4A3728,#6B5344);color:#D4A373;border:none;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px">
+                    <i class="fas fa-chart-bar"></i> Ver Rendimiento
+                </button>
+            </div>
+        </div>`;
     }).join('');
 }
 
-function filtrarRendimiento() {
-    const q = document.getElementById('rendimiento-buscador')?.value?.toLowerCase() || '';
-    const filtrados = productosRendimiento.filter(p => p.nombre.toLowerCase().includes(q));
-    renderizarRendimiento(filtrados);
-}
-
-function editarCostos(pid) {
-    const p = productosRendimiento.find(x => x.id == pid);
-    if (!p) return;
-    const cd = p.costoData || { costo: 0, flete: 0, Newtonsoft: [] };
-    
+async function verRendimientoProducto(pid, nombre) {
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:550px">
+        <div class="modal-content" style="max-width:700px">
             <div class="modal-header">
-                <h3><i class="fas fa-calculator"></i> Costos: ${escapeHtml(p.nombre)}</h3>
-                <button type="button" class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                <h3 style="font-family:'Playfair Display',serif;display:flex;align-items:center;gap:10px">
+                    <i class="fas fa-chart-bar" style="color:#D4A373"></i> ${escapeHtml(nombre)}
+                </h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div style="margin-bottom:12px">
-                    <label style="font-weight:600;display:block;margin-bottom:4px">💰 Precio de costo</label>
-                    <input type="number" id="costo-prod-${pid}" value="${cd.costo}" step="0.01" style="font-size:14px">
+            <div style="padding:20px">
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:20px;background:#FAEDCD;padding:16px;border-radius:16px">
+                    <input type="date" id="rp-desde-${pid}" style="padding:10px 14px;border-radius:50px;border:1px solid #FAEDCD;font-size:13px">
+                    <span style="color:#8B7355;font-size:12px">hasta</span>
+                    <input type="date" id="rp-hasta-${pid}" style="padding:10px 14px;border-radius:50px;border:1px solid #FAEDCD;font-size:13px">
+                    <button onclick="cargarDatosRendProd('${pid}')" style="background:#4A3728;color:#D4A373;border:none;padding:10px 20px;border-radius:50px;font-weight:700;font-size:12px;cursor:pointer"><i class="fas fa-search"></i> Filtrar</button>
+                    <button onclick="document.getElementById('rp-desde-${pid}').value='';document.getElementById('rp-hasta-${pid}').value='';cargarDatosRendProd('${pid}')" style="background:#FAEDCD;color:#4A3728;border:none;padding:10px 14px;border-radius:50px;font-size:12px;cursor:pointer"><i class="fas fa-times"></i></button>
                 </div>
-                <div style="margin-bottom:12px">
-                    <label style="font-weight:600;display:block;margin-bottom:4px">🚚 Flete</label>
-                    <input type="number" id="flete-prod-${pid}" value="${cd.flete}" step="0.01" style="font-size:14px">
-                </div>
-                <div style="margin-bottom:12px">
-                    <label style="font-weight:600;display:block;margin-bottom:8px">📋 Gastos adicionales</label>
-                    <div id="adicionales-lista-${pid}" style="display:flex;flex-direction:column;gap:6px">
-                        ${cd.adicionales.map((a, i) => `
-                            <div style="display:flex;gap:8px;align-items:center">
-                                <input type="text" value="${escapeHtml(a.nombre||'')}" placeholder="Nombre" style="flex:1;font-size:12px" id="ad-nombre-${pid}-${i}">
-                                <input type="number" value="${a.monto||0}" step="0.01" placeholder="Monto" style="width:100px;font-size:12px" id="ad-monto-${pid}-${i}">
-                                <button type="button" onclick="this.parentElement.remove()" style="background:#FEE2E2;color:#ef4444;border:none;padding:4px 8px;border-radius:6px;cursor:pointer"><i class="fas fa-trash"></i></button>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <button type="button" onclick="agregarAdicionalRendimiento('${pid}')" class="tab-btn btn-success" style="padding:6px 12px;font-size:11px;margin-top:8px"><i class="fas fa-plus"></i> Agregar gasto</button>
-                </div>
+                <div id="rp-stats-${pid}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px"></div>
+                <div id="rp-tabla-${pid}"><div style="text-align:center;padding:32px;color:#8B7355"><i class="fas fa-spinner fa-spin" style="color:#D4A373;margin-right:8px"></i>Cargando...</div></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" onclick="this.closest('.modal').remove()" class="tab-btn">Cancelar</button>
-                <button type="button" onclick="guardarCostos('${pid}')" class="btn-confirm" style="width:auto;padding:12px 32px"><i class="fas fa-save"></i> Guardar Costos</button>
-            </div>
-        </div>
-    `;
+        </div>`;
     document.body.appendChild(modal);
 }
 
-function agregarAdicionalRendimiento(pid) {
-    const lista = document.getElementById(`adicionales-lista-${pid}`);
-    if (!lista) return;
-    const i = lista.children.length;
-    const div = document.createElement('div');
-    div.style.cssText = 'display:flex;gap:8px;align-items:center';
-    div.innerHTML = `
-        <input type="text" id="ad-nombre-${pid}-${i}" placeholder="Nombre" style="flex:1;font-size:12px">
-        <input type="number" id="ad-monto-${pid}-${i}" value="0" step="0.01" style="width:100px;font-size:12px">
-        <button type="button" onclick="this.parentElement.remove()" style="background:#FEE2E2;color:#ef4444;border:none;padding:4px 8px;border-radius:6px;cursor:pointer"><i class="fas fa-trash"></i></button>
-    `;
-    lista.appendChild(div);
-}
+async function cargarDatosRendProd(pid) {
+    const desde = document.getElementById(`rp-desde-${pid}`)?.value || '';
+    const hasta = document.getElementById(`rp-hasta-${pid}`)?.value || '';
+    const statsDiv = document.getElementById(`rp-stats-${pid}`);
+    const tablaDiv = document.getElementById(`rp-tabla-${pid}`);
 
-async function guardarCostos(pid) {
-    const costo = parseFloat(document.getElementById(`costo-prod-${pid}`)?.value) || 0;
-    const flete = parseFloat(document.getElementById(`flete-prod-${pid}`)?.value) || 0;
-    
-    const adicionales = [];
-    const lista = document.getElementById(`adicionales-lista-${pid}`);
-    if (lista) {
-        for (let i = 0; i < lista.children.length; i++) {
-            const nombre = document.getElementById(`ad-nombre-${pid}-${i}`)?.value || '';
-            const monto = parseFloat(document.getElementById(`ad-monto-${pid}-${i}`)?.value) || 0;
-            if (nombre.trim() || monto > 0) {
-                adicionales.push({ nombre: nombre.trim() || 'Gasto ' + (i+1), monto });
-            }
-        }
+    if (!desde && !hasta) {
+        if (statsDiv) statsDiv.innerHTML = '';
+        if (tablaDiv) tablaDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#8B7355;background:#FAEDCD;border-radius:16px"><i class="fas fa-calendar-alt" style="font-size:36px;display:block;margin-bottom:12px;opacity:0.4;color:#D4A373"></i><strong>Seleccioná un período</strong><br><span style="font-size:12px">Elegí fecha desde y hasta, luego presioná Filtrar</span></div>`;
+        return;
     }
-    
-    await safeFetch('/admin/guardar-costos', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ productoId: pid, costo, flete, adicionales })
-    });
-    
-    const prod = productosRendimiento.find(p => p.id == pid);
-    if (prod) {
-        prod.costoData = { costo, flete, adicionales };
-    }
-    
-    document.querySelector('.modal.active')?.remove();
-    renderizarRendimiento(productosRendimiento);
-    mostrarToast('✅ Costos guardados');
-}
 
-async function verRendimientoHistorico(pid) {
-    const p = productosRendimiento.find(x => x.id == pid);
-    if (!p) return;
-    
-    const modal = document.createElement('div');
-    modal.className = 'modal active';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width:800px">
-            <div class="modal-header">
-                <h3><i class="fas fa-history"></i> Rendimiento Histórico: ${escapeHtml(p.nombre)}</h3>
-                <button type="button" class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
-            </div>
-            <div class="modal-body" style="display:flex;gap:12px;margin-bottom:16px">
-                <input type="date" id="rh-desde-${pid}" style="width:150px" onchange="cargarRendimientoHistoricoData('${pid}')">
-                <input type="date" id="rh-hasta-${pid}" style="width:150px" onchange="cargarRendimientoHistoricoData('${pid}')">
-                <span style="color:#8B7355;font-size:12px;align-self:center">Filtrar por fecha</span>
-            </div>
-            <div class="modal-body" id="rendimiento-historico-body">
-                <div style="text-align:center;padding:20px">Cargando...</div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    cargarRendimientoHistoricoData(pid);
-}
+    if (tablaDiv) tablaDiv.innerHTML = `<div style="text-align:center;padding:24px;color:#8B7355"><i class="fas fa-spinner fa-spin" style="color:#D4A373;margin-right:8px"></i>Calculando...</div>`;
 
-async function cargarRendimientoHistoricoData(pid) {
-    const desde = document.getElementById(`rh-desde-${pid}`)?.value || '';
-    const hasta = document.getElementById(`rh-hasta-${pid}`)?.value || '';
-    
     try {
-        const d = await safeFetch('/admin/rendimiento-historico', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ productoId: pid, desde, hasta })
-        });
-        
-        const body = document.getElementById('rendimiento-historico-body');
-        if (!body) return;
-        
-        if (!d.ventas?.length) {
-            body.innerHTML = '<p style="text-align:center;color:#8B7355;padding:20px">Sin ventas registradas</p>';
+        const d = await safeFetch('/admin/rendimiento-productos', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({desde,hasta}) });
+        const prod = (d.rendimiento||[]).find(r => r.productoId == pid);
+
+        if (!prod) {
+            if (statsDiv) statsDiv.innerHTML = '';
+            if (tablaDiv) tablaDiv.innerHTML = `<div style="text-align:center;padding:32px;color:#8B7355"><i class="fas fa-inbox" style="font-size:32px;display:block;margin-bottom:12px;opacity:0.3"></i>Sin ventas en el período seleccionado</div>`;
             return;
         }
-        
-        let totalMenor = 0, totalMayor = 0, cantMenor = 0, cantMayor = 0;
-        let ganTotal = 0;
-        
-        let html = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-            <thead><tr style="background:#FEFAE0">
-                <th style="padding:8px;font-size:11px">Fecha</th>
-                <th style="padding:8px;font-size:11px">Venta</th>
-                <th style="padding:8px;font-size:11px">Cant</th>
-                <th style="padding:8px;font-size:11px">P.Unit</th>
-                <th style="padding:8px;font-size:11px">Costo</th>
-                <th style="padding:8px;font-size:11px">Ganancia</th>
-                <th style="padding:8px;font-size:11px">Tipo</th>
-            </tr></thead><tbody>`;
-        
-        d.ventas.forEach(v => {
-            const esMayorista = v.esMayorista || v.precio < (v.precioOriginal || v.precio);
-            const tipo = esMayorista ? 'Mayorista' : 'Minorista';
-            const gan = v.precio - (v.costo || 0);
-            
-            html += `<tr style="border-bottom:1px solid #FAEDCD">
-                <td style="padding:8px;font-size:11px">${v.fecha?.substring(0,10)}</td>
-                <td style="padding:8px;font-size:11px">${v.ventaId}</td>
-                <td style="padding:8px;font-size:11px;text-align:center">${v.amount || v.cant || 1}</td>
-                <td style="padding:8px;font-size:11px">${fmt.format(v.precio)}</td>
-                <td style="padding:8px;font-size:11px">${fmt.format(v.costo||0)}</td>
-                <td style="padding:8px;font-size:11px;color:${gan>=0?'#10b981':'#ef4444'};font-weight:600">${fmt.format(gan)}</td>
-                <td style="padding:8px;font-size:10px"><span style="background:${esMayorista?'#D4A373':'#4A3728'};color:white;padding:2px 6px;border-radius:10px">${tipo}</span></td>
-            </tr>`;
-            
-            const currentAmount = v.amount || v.cant || 1;
-            if (esMayorista) { totalMayor += v.precio * currentAmount; cantMayor += currentAmount; }
-            else { totalMenor += v.precio * currentAmount; cantMenor += currentAmount; }
-            ganTotal += gan * currentAmount;
-        });
-        
-        html += `</tbody></table>
-        <div style="background:#FEFAE0;border-radius:12px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><strong>Minorista:</strong> ${cantMenor} vendidos - ${fmt.format(totalMenor)}</div>
-            <div><strong>Mayorista:</strong> ${cantMayor} vendidos - ${fmt.format(totalMayor)}</div>
-            <div style="font-size:16px;font-weight:700;color:#10b981">💰 Ganancia Total: ${fmt.format(ganTotal)}</div>
-            <div style="font-size:13px;color:#8B7355">📦 Total: ${cantMenor + cantMayor} unidades</div>
-        </div>`;
-        
-        body.innerHTML = html;
+
+        const costo = costosProductos[pid];
+        const costoTotal = costo ? parseFloat(costo.costoTotal) : 0;
+        const prodData = productosRendimiento.find(p => p.id == pid);
+        const precioMenor = prodData?.precio || 0;
+        const precioMayor = prodData?.precioMayor || 0;
+        const ganMenorUnit = precioMenor - costoTotal;
+        const ganMayorUnit = precioMayor - costoTotal;
+        const ganMenorTotal = ganMenorUnit * prod.ventasAdmin;
+        const ganMayorTotal = ganMayorUnit * prod.ventasWeb;
+        const ganTotal = ganMenorTotal + ganMayorTotal;
+
+        if (statsDiv) statsDiv.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                <div style="background:#FAEDCD;border-radius:16px;padding:16px;text-align:center">
+                    <div style="font-size:10px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px"><i class="fas fa-boxes" style="color:#D4A373"></i> Unidades vendidas</div>
+                    <div style="font-size:28px;font-weight:800;color:#4A3728">${prod.unidades}</div>
+                </div>
+                <div style="background:#FAEDCD;border-radius:16px;padding:16px;text-align:center">
+                    <div style="font-size:10px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px"><i class="fas fa-dollar-sign" style="color:#10b981"></i> Ingresos totales</div>
+                    <div style="font-size:22px;font-weight:800;color:#10b981">${fmt.format(prod.ingresos)}</div>
+                </div>
+                <div style="background:#FAEDCD;border-radius:16px;padding:16px;text-align:center">
+                    <div style="font-size:10px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px"><i class="fas fa-store" style="color:#4A3728"></i> Vendidas en local</div>
+                    <div style="font-size:28px;font-weight:800;color:#4A3728">${prod.ventasAdmin}</div>
+                </div>
+                <div style="background:#FAEDCD;border-radius:16px;padding:16px;text-align:center">
+                    <div style="font-size:10px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px"><i class="fas fa-globe" style="color:#f59e0b"></i> Vendidas en web</div>
+                    <div style="font-size:28px;font-weight:800;color:#f59e0b">${prod.ventasWeb}</div>
+                </div>
+            </div>
+
+            ${costoTotal > 0 ? `
+            <div style="background:linear-gradient(135deg,#4A3728,#6B5344);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px">
+                <div style="font-size:10px;font-weight:700;color:#D4A373;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px"><i class="fas fa-chart-line"></i> Ganancias del producto</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.07);border-radius:12px">
+                    <div>
+                        <div style="font-size:11px;color:#D4A373;font-weight:700">Precio Menor — ${prod.ventasAdmin} u. × ${fmt.format(ganMenorUnit)}/u</div>
+                        <div style="font-size:10px;color:#FAEDCD;opacity:0.6;margin-top:2px">Precio ${fmt.format(precioMenor)} − Costo ${fmt.format(costoTotal)}</div>
+                    </div>
+                    <div style="font-size:18px;font-weight:800;color:${ganMenorTotal>=0?'#10b981':'#ef4444'}">${fmt.format(ganMenorTotal)}</div>
+                </div>
+                ${precioMayor > 0 ? `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(255,255,255,0.07);border-radius:12px">
+                    <div>
+                        <div style="font-size:11px;color:#D4A373;font-weight:700">Precio Mayor — ${prod.ventasWeb} u. × ${fmt.format(ganMayorUnit)}/u</div>
+                        <div style="font-size:10px;color:#FAEDCD;opacity:0.6;margin-top:2px">Precio ${fmt.format(precioMayor)} − Costo ${fmt.format(costoTotal)}</div>
+                    </div>
+                    <div style="font-size:18px;font-weight:800;color:${ganMayorTotal>=0?'#10b981':'#ef4444'}">${fmt.format(ganMayorTotal)}</div>
+                </div>` : ''}
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:rgba(212,163,115,0.15);border-radius:12px;border:1px solid rgba(212,163,115,0.3)">
+                    <div style="font-size:13px;font-weight:700;color:#D4A373">GANANCIA TOTAL</div>
+                    <div style="font-size:22px;font-weight:800;color:${ganTotal>=0?'#D4A373':'#ef4444'}">${fmt.format(ganTotal)}</div>
+                </div>
+            </div>` : `
+            <div style="background:#FEF3C7;border:2px dashed #f59e0b;border-radius:16px;padding:20px;text-align:center">
+                <i class="fas fa-exclamation-triangle" style="color:#f59e0b;font-size:24px;display:block;margin-bottom:8px"></i>
+                <p style="color:#8B7355;font-size:13px;margin:0">Sin costo cargado — no se puede calcular ganancia</p>
+            </div>`}`;
+
+        if (tablaDiv) tablaDiv.innerHTML = '';
+
     } catch(e) {
-        console.error(e);
+        if (statsDiv) statsDiv.innerHTML = '';
+        if (tablaDiv) tablaDiv.innerHTML = `<div style="text-align:center;padding:24px;color:#ef4444"><i class="fas fa-exclamation-circle"></i> Error al cargar datos</div>`;
+    }
+}
+
+function filtrarRendimiento() {
+    const busq = (document.getElementById('rendimiento-buscador')?.value||'').toLowerCase();
+    const filtroStock = document.getElementById('rendimiento-filtro-stock')?.value||'todos';
+    const orden = document.getElementById('rendimiento-orden')?.value||'nombre';
+    let lista = [...productosRendimiento];
+    if (busq) lista = lista.filter(p => p.nombre.toLowerCase().includes(busq));
+    if (filtroStock==='con_stock') lista = lista.filter(p => p.variantes?.some(v=>v.stock>0));
+    else if (filtroStock==='sin_stock') lista = lista.filter(p => p.variantes?.every(v=>v.stock===0));
+    else if (filtroStock==='stock_bajo') lista = lista.filter(p => p.variantes?.some(v=>v.stock>0&&v.stock<=5));
+    if (orden==='nombre') lista.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+    else if (orden==='precio_asc') lista.sort((a,b)=>a.precio-b.precio);
+    else if (orden==='precio_desc') lista.sort((a,b)=>b.precio-a.precio);
+    else if (orden==='stock_desc') lista.sort((a,b)=>b.variantes?.reduce((s,v)=>s+v.stock,0)-a.variantes?.reduce((s,v)=>s+v.stock,0));
+    else if (orden==='stock_asc') lista.sort((a,b)=>a.variantes?.reduce((s,v)=>s+v.stock,0)-b.variantes?.reduce((s,v)=>s+v.stock,0));
+    renderizarRendimiento(lista);
+}
+
+function abrirModalRendimientoTotal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:650px">
+            <div class="modal-header">
+                <h3 style="font-family:'Playfair Display',serif;display:flex;align-items:center;gap:10px">
+                    <i class="fas fa-calculator" style="color:#D4A373"></i> Rendimiento Total
+                </h3>
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding:24px">
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:20px;background:#FAEDCD;padding:16px;border-radius:16px">
+                    <input type="date" id="rt-desde" style="padding:10px 14px;border-radius:50px;border:1px solid #FAEDCD;font-size:13px">
+                    <span style="color:#8B7355;font-size:12px">hasta</span>
+                    <input type="date" id="rt-hasta" style="padding:10px 14px;border-radius:50px;border:1px solid #FAEDCD;font-size:13px">
+                    <button onclick="cargarRendimientoTotalData()" style="background:#4A3728;color:#D4A373;border:none;padding:10px 20px;border-radius:50px;font-weight:700;font-size:12px;cursor:pointer"><i class="fas fa-search"></i> Calcular</button>
+                    <button onclick="document.getElementById('rt-desde').value='';document.getElementById('rt-hasta').value='';cargarRendimientoTotalData()" style="background:#FAEDCD;color:#4A3728;border:none;padding:10px 14px;border-radius:50px;font-size:12px;cursor:pointer"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="rt-resultado">
+                    <div style="text-align:center;padding:40px;color:#8B7355">
+                        <i class="fas fa-calendar-alt" style="font-size:36px;display:block;margin-bottom:12px;opacity:0.4;color:#D4A373"></i>
+                        <strong>Seleccioná un período</strong><br><span style="font-size:12px">o dejalo vacío y presioná Calcular para ver todo el historial</span>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+}
+
+async function cargarRendimientoTotalData() {
+    const desde = document.getElementById('rt-desde')?.value || '';
+    const hasta = document.getElementById('rt-hasta')?.value || '';
+    const cont = document.getElementById('rt-resultado');
+    if (!cont) return;
+    cont.innerHTML = `<div style="text-align:center;padding:32px;color:#8B7355"><i class="fas fa-spinner fa-spin" style="color:#D4A373;margin-right:8px"></i>Calculando ganancias totales...</div>`;
+    try {
+        const d = await safeFetch('/admin/rendimiento-total', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({desde,hasta}) });
+        cont.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+                <div style="background:#FAEDCD;border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:10px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px"><i class="fas fa-tag" style="color:#D4A373"></i> Ganancia por Menor</div>
+                    <div style="font-size:22px;font-weight:800;color:${d.gananciaMenor>=0?'#10b981':'#ef4444'}">${fmt.format(d.gananciaMenor)}</div>
+                    <div style="font-size:11px;color:#8B7355;margin-top:4px">${d.unidadesMenor} u. — ${d.ventasConMenor} ventas</div>
+                </div>
+                <div style="background:#D1FAE5;border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:10px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px"><i class="fas fa-gem" style="color:#065f46"></i> Ganancia por Mayor</div>
+                    <div style="font-size:22px;font-weight:800;color:${d.gananciaMayor>=0?'#10b981':'#ef4444'}">${fmt.format(d.gananciaMayor)}</div>
+                    <div style="font-size:11px;color:#8B7355;margin-top:4px">${d.unidadesMayor} u. — ${d.ventasConMayor} ventas</div>
+                </div>
+            </div>
+            <div style="background:linear-gradient(135deg,#4A3728,#6B5344);border-radius:16px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <div>
+                    <div style="font-size:11px;font-weight:700;color:#D4A373;text-transform:uppercase;letter-spacing:1px">Ganancia Total (Menor + Mayor)</div>
+                    <div style="font-size:11px;color:#FAEDCD;opacity:0.7;margin-top:2px">${d.totalVentas} ventas en el período</div>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:${d.gananciaTotal>=0?'#D4A373':'#ef4444'}">${fmt.format(d.gananciaTotal)}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                <div style="background:#FAEDCD;border-radius:12px;padding:12px;text-align:center">
+                    <div style="font-size:9px;font-weight:700;color:#8B7355;text-transform:uppercase">Ingresos Menor</div>
+                    <div style="font-size:14px;font-weight:700;color:#4A3728;margin-top:4px">${fmt.format(d.ingresosMenor)}</div>
+                </div>
+                <div style="background:#FAEDCD;border-radius:12px;padding:12px;text-align:center">
+                    <div style="font-size:9px;font-weight:700;color:#8B7355;text-transform:uppercase">Ingresos Mayor</div>
+                    <div style="font-size:14px;font-weight:700;color:#4A3728;margin-top:4px">${fmt.format(d.ingresosMayor)}</div>
+                </div>
+                <div style="background:#4A3728;border-radius:12px;padding:12px;text-align:center">
+                    <div style="font-size:9px;font-weight:700;color:#D4A373;text-transform:uppercase">Ingresos Totales</div>
+                    <div style="font-size:14px;font-weight:700;color:#D4A373;margin-top:4px">${fmt.format(d.ingresosTotal)}</div>
+                </div>
+            </div>
+        `;
+    } catch(e) {
+        cont.innerHTML = `<div style="text-align:center;padding:24px;color:#ef4444"><i class="fas fa-exclamation-circle"></i> Error al calcular</div>`;
     }
 }
     
