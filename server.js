@@ -1344,9 +1344,6 @@ app.post('/admin/confirmar-cambio', adminMiddleware('ventas'), async (req, res) 
         res.json({ success: true, nuevoTotal, diferencia });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
-app.post('/admin/exportar-ventas', adminMiddleware(), async (req, res) => {
-
 app.post('/admin/exportar-ventas', adminMiddleware(), async (req, res) => {
     let csv = '\uFEFFFecha;ID;Cliente;Total;Pago;Origen\n';
     const ventas = (await pool.query('SELECT * FROM ventas ORDER BY "fechaTimestamp" DESC')).rows;
