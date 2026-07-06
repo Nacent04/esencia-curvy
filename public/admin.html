@@ -260,6 +260,7 @@ body.dark-mode .backup-card-item{background:#2A1F18;border-color:#3D2B20}
         <button id="t-logs" class="tab-btn btn-info" data-permiso="logs" onclick="tab('logs')"><i class="fas fa-history"></i> Logs</button>
         <button id="t-clientes" class="tab-btn btn-info" data-permiso="clientes" onclick="tab('clientes')"><i class="fas fa-users"></i> Clientes</button>
         <button id="t-rendimiento" class="tab-btn btn-success" data-permiso="ventas" onclick="tab('rendimiento')"><i class="fas fa-chart-line"></i> Rendimiento</button>
+        <button id="t-cambios" class="tab-btn btn-warning" data-permiso="ventas" onclick="tab('cambios')"><i class="fas fa-exchange-alt"></i> Cambios</button>
         <button id="t-web" class="tab-btn" data-permiso="web" onclick="tab('web')"><i class="fas fa-paint-brush"></i> Edición Web</button>
         <button id="t-backup" class="tab-btn btn-warning" data-permiso="config" onclick="tab('backup')"><i class="fas fa-database"></i> Backup</button>
         <div style="margin-left:auto;position:relative">
@@ -364,6 +365,7 @@ let adminActual = null;
 let productos = [], carrito = [], metodoPago = 'efectivo', logistica = 'local', totalVenta = 0;
 let ventasHistorial = [], pedidosTienda = [], categorias = [], metodosEnvio = [];
 let varianteSeleccionada = {}, configuracion = {}, mayoristaHabilitado = false, mayoristaModo = 'cantidad';
+let ventaCambioActual = null, catalogoCambio = [], itemsDevueltosCambio = {}, itemsAgregadosCambio = [];
 let notificaciones = [], notificacionesNoLeidas = 0;
 let chartsInstances = {};
 const fmt = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 });
@@ -506,6 +508,7 @@ function tab(t) {
     else if (t==='logs') { container.className='layout'; container.innerHTML=renderPaginaLogs(); cartPanel.classList.add('hidden'); cargarLogs(); }
     else if (t==='clientes') { container.className='layout'; container.innerHTML=renderPaginaClientes(); cartPanel.classList.add('hidden'); cargarClientes(); }
     else if (t==='rendimiento') { container.className='layout'; container.innerHTML=renderPaginaRendimiento(); cartPanel.classList.add('hidden'); cargarProductosRendimiento(); }
+    else if (t==='cambios') { container.className='layout'; container.innerHTML=renderPaginaCambios(); cartPanel.classList.add('hidden'); }
     else if (t==='web') { container.className='layout'; container.innerHTML=renderPaginaEdicionWeb(); cartPanel.classList.add('hidden'); }
     else if (t==='backup') { container.className='layout'; container.innerHTML=renderPaginaBackup(); cartPanel.classList.add('hidden'); setTimeout(cargarHistorialBackups,100); }
     document.querySelectorAll('.nav-tabs .tab-btn').forEach(b => b.classList.remove('active'));
@@ -2740,7 +2743,219 @@ async function cargarRendimientoTotalData() {
         cont.innerHTML = `<div style="text-align:center;padding:24px;color:#ef4444"><i class="fas fa-exclamation-circle"></i> Error al calcular</div>`;
     }
 }
-    
+
+function renderPaginaCambios() {
+    return `<div class="panel">
+        <h3 style="margin-bottom:20px"><i class="fas fa-exchange-alt"></i> Cambios de Productos</h3>
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+            <input type="text" id="cambio-factura-input" placeholder="Ej: FAC-1781489437553" style="flex:1;min-width:220px" onkeyup="if(event.key==='Enter')buscarVentaCambio()">
+            <button type="button" onclick="buscarVentaCambio()" class="tab-btn btn-info"><i class="fas fa-search"></i> Buscar Factura</button>
+        </div>
+        <div id="cambio-resultado"></div>
+    </div>`;
+}
+
+async function buscarVentaCambio() {
+    const facturaId = document.getElementById('cambio-factura-input')?.value.trim();
+    if (!facturaId) { mostrarToast('Ingresá un número de factura', true); return; }
+    const cont = document.getElementById('cambio-resultado');
+    cont.innerHTML = '<div style="text-align:center;padding:24px;color:#8B7355"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+    try {
+        const d = await safeFetch('/admin/buscar-venta-cambio', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ facturaId }) });
+        ventaCambioActual = d.venta;
+        itemsDevueltosCambio = {};
+        itemsAgregadosCambio = [];
+        if (!catalogoCambio.length) {
+            const p = await safeFetch('/listar', {method:'POST'});
+            catalogoCambio = p.lista || [];
+        }
+        renderDetalleVentaCambio(d.historialCambios || []);
+    } catch(e) {
+        cont.innerHTML = '';
+    }
+}
+
+function renderDetalleVentaCambio(historial) {
+    const cont = document.getElementById('cambio-resultado');
+    const v = ventaCambioActual;
+    if (!v) { cont.innerHTML = ''; return; }
+    const cliente = v.cliente || {};
+
+    let itemsHTML = v.items.map((it) => `
+        <div style="display:flex;align-items:center;gap:12px;background:#FEFAE0;border-radius:14px;padding:10px 14px;margin-bottom:8px">
+            <img src="${sanitizarUrl(it.vFoto)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;background:#FAEDCD" onerror="this.src='https://via.placeholder.com/44'">
+            <div style="flex:1;min-width:0">
+                <strong style="font-size:13px">${escapeHtml(it.pNom)}</strong>
+                <div style="font-size:11px;color:#8B7355">${escapeHtml(it.vNom)} · ${fmt.format(it.precio)} c/u · Comprado: <strong>${it.cant}</strong></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+                <label style="font-size:11px;color:#8B7355">Devolver:</label>
+                <input type="number" min="0" max="${it.cant}" value="0" style="width:60px;padding:6px;text-align:center"
+                    onchange="actualizarDevolucionCambio('${it.pId}','${(it.vNom||'').replace(/'/g,"\\'")}', this.value, ${it.cant}, ${it.esManual?'true':'false'}, ${it.precio})">
+            </div>
+        </div>
+    `).join('');
+
+    cont.innerHTML = `
+        <div style="background:#FEFAE0;border-radius:16px;padding:16px;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                <div><strong>${escapeHtml(v.id)}</strong> · ${escapeHtml(v.fecha)}</div>
+                <div>Cliente: <strong>${escapeHtml(cliente.nombre || 'Mostrador')}</strong></div>
+            </div>
+            <div style="margin-top:6px;font-size:13px">Total original: <strong>${fmt.format(v.total)}</strong> ${v.esMayorista ? '<span style="background:#D4A373;color:white;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:6px">MAYORISTA</span>' : ''}</div>
+        </div>
+
+        <h4 style="margin-bottom:10px"><i class="fas fa-box-open"></i> Productos de la Compra</h4>
+        <div id="items-venta-cambio">${itemsHTML}</div>
+
+        <h4 style="margin:20px 0 10px"><i class="fas fa-plus-circle"></i> Agregar Producto Nuevo</h4>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#FEFAE0;padding:14px;border-radius:14px">
+            <div style="flex:1;min-width:180px">
+                <label class="form-label">Producto</label>
+                <select id="cambio-select-producto" onchange="actualizarVariantesCambio()">
+                    <option value="">Seleccionar...</option>
+                    ${catalogoCambio.map(p => `<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('')}
+                </select>
+            </div>
+            <div style="flex:1;min-width:160px">
+                <label class="form-label">Variante</label>
+                <select id="cambio-select-variante"><option value="">-</option></select>
+            </div>
+            <div style="width:80px">
+                <label class="form-label">Cant.</label>
+                <input type="number" id="cambio-input-cantidad" value="1" min="1">
+            </div>
+            <button type="button" id="btn-agregar-item-cambio" onclick="agregarProductoCambio()" class="tab-btn btn-success"><i class="fas fa-plus"></i> Agregar</button>
+        </div>
+        <div id="items-agregados-cambio" style="margin-top:12px"></div>
+
+        <div id="resumen-cambio" style="margin-top:20px"></div>
+
+        ${historial.length ? `
+        <h4 style="margin:24px 0 10px"><i class="fas fa-history"></i> Historial de Cambios Anteriores</h4>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            ${historial.map(h => `
+                <div style="background:#FEFAE0;border-radius:12px;padding:10px 14px;font-size:12px">
+                    <strong>${h.fecha}</strong> · Diferencia: <strong style="color:${h.diferencia>=0?'#10b981':'#ef4444'}">${fmt.format(h.diferencia)}</strong> · Por: ${escapeHtml(h.admin||'')}
+                </div>
+            `).join('')}
+        </div>` : ''}
+    `;
+    actualizarResumenCambio();
+}
+
+function actualizarVariantesCambio() {
+    const pid = document.getElementById('cambio-select-producto').value;
+    const sel = document.getElementById('cambio-select-variante');
+    const p = catalogoCambio.find(x => x.id == pid);
+    if (!p) { sel.innerHTML = '<option value="">-</option>'; return; }
+    sel.innerHTML = (p.variantes||[]).map(v => `<option value="${escapeHtml(v.nombre)}" ${v.stock<=0?'disabled':''}>${escapeHtml(v.nombre)} (Stock: ${v.stock})</option>`).join('');
+}
+
+function actualizarDevolucionCambio(pId, vNom, cantidad, maxCant, esManual, precio) {
+    const key = pId + '|' + vNom;
+    const cant = Math.max(0, Math.min(parseInt(cantidad)||0, maxCant));
+    if (cant === 0) delete itemsDevueltosCambio[key];
+    else itemsDevueltosCambio[key] = { pId, vNom, cant, esManual, precio };
+    actualizarResumenCambio();
+}
+
+function agregarProductoCambio() {
+    const pid = document.getElementById('cambio-select-producto').value;
+    const vnom = document.getElementById('cambio-select-variante').value;
+    const cant = parseInt(document.getElementById('cambio-input-cantidad').value) || 1;
+    if (!pid || !vnom) { mostrarToast('Elegí producto y variante', true); return; }
+    const p = catalogoCambio.find(x => x.id == pid);
+    const v = p?.variantes.find(x => x.nombre === vnom);
+    if (!v) return;
+    if (v.stock < cant) { mostrarToast('Stock insuficiente', true); return; }
+
+    const precioAplicado = (ventaCambioActual.esMayorista && p.precioMayor > 0) ? p.precioMayor : p.precio;
+
+    const existente = itemsAgregadosCambio.find(x => x.pId == pid && x.vNom === vnom);
+    if (existente) existente.cant += cant;
+    else itemsAgregadosCambio.push({ pId: p.id, pNom: p.nombre, vNom: vnom, vFoto: v.foto || '', precio: precioAplicado, precioOriginal: p.precio, cant, esManual: false });
+
+    renderItemsAgregadosCambio();
+    actualizarResumenCambio();
+}
+
+function renderItemsAgregadosCambio() {
+    const cont = document.getElementById('items-agregados-cambio');
+    if (!cont) return;
+    if (!itemsAgregadosCambio.length) { cont.innerHTML = ''; return; }
+    cont.innerHTML = itemsAgregadosCambio.map((it, i) => `
+        <div style="display:flex;align-items:center;gap:12px;background:#D1FAE5;border-radius:14px;padding:10px 14px;margin-bottom:8px">
+            <img src="${sanitizarUrl(it.vFoto)}" style="width:40px;height:40px;border-radius:8px;object-fit:cover" onerror="this.src='https://via.placeholder.com/40'">
+            <div style="flex:1"><strong style="font-size:13px">${escapeHtml(it.pNom)}</strong><div style="font-size:11px;color:#065f46">${escapeHtml(it.vNom)} · ${fmt.format(it.precio)} × ${it.cant}</div></div>
+            <button type="button" onclick="quitarItemAgregadoCambio(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer"><i class="fas fa-times-circle"></i></button>
+        </div>
+    `).join('');
+}
+
+function quitarItemAgregadoCambio(i) {
+    itemsAgregadosCambio.splice(i, 1);
+    renderItemsAgregadosCambio();
+    actualizarResumenCambio();
+}
+
+function actualizarResumenCambio() {
+    const totalDevuelto = Object.values(itemsDevueltosCambio).reduce((s,it) => s + (it.precio * it.cant), 0);
+    const totalAgregado = itemsAgregadosCambio.reduce((s,it) => s + (it.precio * it.cant), 0);
+    const diferencia = totalAgregado - totalDevuelto;
+
+    const btnAgregar = document.getElementById('btn-agregar-item-cambio');
+    if (btnAgregar) btnAgregar.disabled = diferencia > 0;
+
+    const cont = document.getElementById('resumen-cambio');
+    if (!cont) return;
+    cont.innerHTML = `
+        <div style="background:#4A3728;color:white;border-radius:16px;padding:18px 20px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span>Total devuelto:</span><strong>-${fmt.format(totalDevuelto)}</strong></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px"><span>Total agregado:</span><strong>+${fmt.format(totalAgregado)}</strong></div>
+            <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.2);padding-top:10px;font-size:18px;font-weight:800">
+                <span>Diferencia:</span><span style="color:${diferencia>0?'#fca5a5':diferencia<0?'#86efac':'white'}">${diferencia>0?'Cliente paga ':diferencia<0?'A favor del cliente ':''}${fmt.format(Math.abs(diferencia))}</span>
+            </div>
+        </div>
+        ${diferencia > 0 ? `
+        <div style="margin-top:12px">
+            <label class="form-label">Método de pago de la diferencia</label>
+            <select id="cambio-metodo-diferencia">
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+            </select>
+        </div>` : ''}
+        <button type="button" onclick="confirmarCambioProducto()" class="btn-confirm" style="margin-top:16px" ${(!Object.keys(itemsDevueltosCambio).length && !itemsAgregadosCambio.length) ? 'disabled' : ''}>
+            <i class="fas fa-check-circle"></i> Confirmar Cambio
+        </button>
+    `;
+}
+
+async function confirmarCambioProducto() {
+    if (!confirm('¿Confirmar este cambio? Esta acción modificará el stock y la venta original.')) return;
+    const metodoPagoDiferencia = document.getElementById('cambio-metodo-diferencia')?.value || '';
+    try {
+        await safeFetch('/admin/confirmar-cambio', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                ventaId: ventaCambioActual.id,
+                itemsDevueltos: Object.values(itemsDevueltosCambio),
+                itemsAgregados: itemsAgregadosCambio,
+                metodoPagoDiferencia
+            })
+        });
+        mostrarToast('✅ Cambio confirmado con éxito');
+        document.getElementById('cambio-factura-input').value = '';
+        document.getElementById('cambio-resultado').innerHTML = '';
+        ventaCambioActual = null;
+        itemsDevueltosCambio = {};
+        itemsAgregadosCambio = [];
+    } catch(e) {}
+}
+
+function toggleThemePanel(){const p=document.getElementById('theme-panel');if(p)p.style.display=p.style.display==='block'?'none':'block';}
+
 function toggleThemePanel(){const p=document.getElementById('theme-panel');if(p)p.style.display=p.style.display==='block'?'none':'block';}
 function toggleDarkMode(){document.body.classList.toggle('dark-mode');localStorage.setItem('darkMode',document.body.classList.contains('dark-mode'));}
 if(localStorage.getItem('darkMode')==='true'){document.body.classList.add('dark-mode');}
