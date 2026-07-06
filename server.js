@@ -198,6 +198,17 @@ async function initDB() {
                 adicionales TEXT DEFAULT '[]',
                 "fechaActualizacion" BIGINT
             );
+            CREATE TABLE IF NOT EXISTS cambios (
+                id TEXT PRIMARY KEY,
+                "ventaId" TEXT NOT NULL,
+                fecha TEXT,
+                "fechaTimestamp" BIGINT,
+                "itemsDevueltos" TEXT DEFAULT '[]',
+                "itemsAgregados" TEXT DEFAULT '[]',
+                diferencia REAL DEFAULT 0,
+                "metodoPagoDiferencia" TEXT DEFAULT '',
+                admin TEXT
+            );
         `);
         console.log('✅ PostgreSQL listo');
     } finally {
@@ -1256,6 +1267,85 @@ app.post('/admin/rendimiento-historico', adminMiddleware('ventas'), async (req, 
         res.json({ ventas: resultado });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+app.post('/admin/buscar-venta-cambio', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const { facturaId } = req.body;
+        if (!facturaId) return res.status(400).json({ error: 'Ingresá un número de factura' });
+        const v = (await pool.query('SELECT * FROM ventas WHERE id=$1', [facturaId.trim()])).rows[0];
+        if (!v) return res.status(404).json({ error: 'No se encontró ninguna venta con ese número de factura' });
+        const items = JSON.parse(v.items||'[]');
+        const cliente = JSON.parse(v.cliente||'{}');
+        const esMayorista = items.some(it => it.precioOriginal && it.precio < it.precioOriginal);
+        const historialRows = (await pool.query('SELECT * FROM cambios WHERE "ventaId"=$1 ORDER BY "fechaTimestamp" DESC', [v.id])).rows;
+        const historialCambios = historialRows.map(c => ({
+            ...c,
+            itemsDevueltos: JSON.parse(c.itemsDevueltos||'[]'),
+            itemsAgregados: JSON.parse(c.itemsAgregados||'[]')
+        }));
+        res.json({ venta: { ...v, items, cliente, esMayorista }, historialCambios });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/admin/confirmar-cambio', adminMiddleware('ventas'), async (req, res) => {
+    try {
+        const { ventaId, itemsDevueltos, itemsAgregados, metodoPagoDiferencia } = req.body;
+        const v = (await pool.query('SELECT * FROM ventas WHERE id=$1', [ventaId])).rows[0];
+        if (!v) return res.status(404).json({ error: 'Venta no encontrada' });
+        let items = JSON.parse(v.items||'[]');
+        const esMayorista = items.some(it => it.precioOriginal && it.precio < it.precioOriginal);
+
+        for (const dev of (itemsDevueltos||[])) {
+            const idx = items.findIndex(it => it.pId == dev.pId && it.vNom === dev.vNom);
+            if (idx === -1) continue;
+            const cantDevolver = Math.min(dev.cant, items[idx].cant);
+            if (cantDevolver <= 0) continue;
+            items[idx].cant -= cantDevolver;
+            if (!items[idx].esManual) {
+                await pool.query('UPDATE variantes SET stock = stock + $1 WHERE "productoId"=$2 AND nombre=$3', [cantDevolver, dev.pId, dev.vNom]);
+            }
+        }
+        items = items.filter(it => it.cant > 0);
+
+        for (const add of (itemsAgregados||[])) {
+            if (!add.esManual) {
+                const stockRow = (await pool.query('SELECT stock FROM variantes WHERE "productoId"=$1 AND nombre=$2', [add.pId, add.vNom])).rows[0];
+                if (!stockRow || stockRow.stock < add.cant) return res.status(400).json({ error: `Stock insuficiente para ${add.pNom} - ${add.vNom}` });
+            }
+        }
+        for (const add of (itemsAgregados||[])) {
+            if (!add.esManual) {
+                await pool.query('UPDATE variantes SET stock = stock - $1 WHERE "productoId"=$2 AND nombre=$3', [add.cant, add.pId, add.vNom]);
+            }
+            const idxExistente = items.findIndex(it => it.pId == add.pId && it.vNom === add.vNom && !it.esManual);
+            if (idxExistente !== -1) {
+                items[idxExistente].cant += add.cant;
+            } else {
+                const nuevoItem = {
+                    pId: add.pId, pNom: add.pNom, vNom: add.vNom, vFoto: add.vFoto || '',
+                    precio: add.precio, cant: add.cant, esManual: add.esManual || false
+                };
+                if (esMayorista && add.precioOriginal) nuevoItem.precioOriginal = add.precioOriginal;
+                items.push(nuevoItem);
+            }
+        }
+
+        const nuevoTotal = items.reduce((s, it) => s + (it.precio * it.cant), 0);
+        const diferencia = nuevoTotal - v.total;
+
+        await pool.query('UPDATE ventas SET items=$1, total=$2 WHERE id=$3', [JSON.stringify(items), nuevoTotal, ventaId]);
+
+        const cambioId = 'CAMB-' + Date.now();
+        await pool.query('INSERT INTO cambios (id,"ventaId",fecha,"fechaTimestamp","itemsDevueltos","itemsAgregados",diferencia,"metodoPagoDiferencia",admin) VALUES ($1,$2,TO_CHAR(NOW(),\'DD/MM/YYYY HH24:MI:SS\'),$3,$4,$5,$6,$7,$8)',
+            [cambioId, ventaId, Date.now(), JSON.stringify(itemsDevueltos||[]), JSON.stringify(itemsAgregados||[]), diferencia, metodoPagoDiferencia||'', req.admin?.nombre||'Admin']);
+
+        await logActividad(req.admin?.nombre || 'Admin', 'CAMBIO_PRODUCTO', `Venta ${ventaId}: diferencia ${diferencia}`, req);
+
+        res.json({ success: true, nuevoTotal, diferencia });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/admin/exportar-ventas', adminMiddleware(), async (req, res) => {
 
 app.post('/admin/exportar-ventas', adminMiddleware(), async (req, res) => {
     let csv = '\uFEFFFecha;ID;Cliente;Total;Pago;Origen\n';
