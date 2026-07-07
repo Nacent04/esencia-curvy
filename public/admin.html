@@ -329,6 +329,30 @@ body.dark-mode .backup-card-item{background:#2A1F18;border-color:#3D2B20}
         <button type="button" id="p-tr" class="pago-btn" onclick="setMetodo('transferencia')"><i class="fas fa-exchange-alt"></i> Transf.</button>
         <button type="button" id="p-mx" class="pago-btn" onclick="setMetodo('mixto')"><i class="fas fa-hand-holding-usd"></i> Mixto</button>
     </div>
+
+    <button type="button" id="btn-forzar-mayorista" onclick="toggleMayoristaForzado()" style="width:100%; margin:12px 0; background:#4A3728; color:white; border:none; padding:12px; border-radius:50px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <i class="fas fa-gem"></i> Aplicar Precio Mayorista
+    </button>
+    
+    <div class="total-container">
+        <div>Total a pagar</div>
+        <div id="total-txt" class="total-amount">$0</div>
+        
+        <button type="button" onclick="abrirModalGasto()" style="width:100%; margin-bottom:10px; background:#E0A899; color:white; border:none; padding:10px; border-radius:50px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fas fa-hand-holding-usd"></i> Anotar Gasto Caja
+        </button>
+        
+        <button type="button" class="btn-confirm" onclick="checkout()"><i class="fas fa-check-circle"></i> CONFIRMAR VENTA</button>
+    </div><label style="font-weight:600;margin:16px 0 8px;display:block"><i class="fas fa-credit-card"></i> Pago</label>
+    <div class="pago-tabs">
+        <button type="button" id="p-ef" class="pago-btn active" onclick="setMetodo('efectivo')"><i class="fas fa-money-bill-wave"></i> Efectivo</button>
+        <button type="button" id="p-tr" class="pago-btn" onclick="setMetodo('transferencia')"><i class="fas fa-exchange-alt"></i> Transf.</button>
+        <button type="button" id="p-mx" class="pago-btn" onclick="setMetodo('mixto')"><i class="fas fa-hand-holding-usd"></i> Mixto</button>
+    </div>
+
+    <button type="button" id="btn-forzar-mayorista" onclick="toggleMayoristaForzado()" style="width:100%; margin:12px 0; background:#4A3728; color:white; border:none; padding:12px; border-radius:50px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <i class="fas fa-gem"></i> Aplicar Precio Mayorista
+    </button>
     
     <div class="total-container">
         <div>Total a pagar</div>
@@ -365,6 +389,7 @@ let adminActual = null;
 let productos = [], carrito = [], metodoPago = 'efectivo', logistica = 'local', totalVenta = 0;
 let ventasHistorial = [], pedidosTienda = [], categorias = [], metodosEnvio = [];
 let varianteSeleccionada = {}, configuracion = {}, mayoristaHabilitado = false, mayoristaModo = 'cantidad';
+let mayoristaForzado = false;
 let ventaCambioActual = null, catalogoCambio = [], itemsDevueltosCambio = {}, itemsAgregadosCambio = [];
 let notificaciones = [], notificacionesNoLeidas = 0;
 let chartsInstances = {};
@@ -911,7 +936,21 @@ function renderPaginaConfiguracion() {
     
 function renderPaginaBackup() { return `<div class="panel"><div class="backup-hero"><div class="backup-hero-icon">💾</div><h2>Sistema de Backup Total</h2><p>Protegé absolutamente todos tus datos.</p><button type="button" onclick="iniciarBackupTotal()" class="btn-backup-master" id="btn-backup-total"><i class="fas fa-shield-alt"></i> Crear Backup Completo</button></div><div class="backup-cards"><div class="backup-card-item" onclick="iniciarBackupTotal()"><div class="backup-card-icon" style="background:#eef2ff;color:#6366f1"><i class="fas fa-database"></i></div><h4>Backup Completo</h4><p>Incluye absolutamente todo.</p></div><div class="backup-card-item" onclick="document.getElementById('restore-section').scrollIntoView({behavior:'smooth'})"><div class="backup-card-icon" style="background:#fef3c7;color:#f59e0b"><i class="fas fa-undo-alt"></i></div><h4>Restaurar Sistema</h4><p>Restaurá todo desde un archivo.</p></div></div><div class="config-section"><h3><i class="fas fa-history"></i> Historial <button type="button" onclick="cargarHistorialBackups()" class="tab-btn" style="float:right"><i class="fas fa-sync-alt"></i></button></h3><table class="history-table"><thead><tr><th>Fecha</th><th>Tamaño</th><th>Acciones</th></tr></thead><tbody id="backup-history-body"><tr><td colspan="3" style="text-align:center">Cargando...</td></tr></tbody></table></div><div class="config-section" style="border:2px solid #f59e0b" id="restore-section"><h3 style="color:#f59e0b"><i class="fas fa-upload"></i> Restaurar</h3><div class="restore-zone" onclick="document.getElementById('restore-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.this.classList.remove('dragover')" ondrop="manejarDropRestore(event)"><i class="fas fa-cloud-upload-alt" style="font-size:48px;color:#f59e0b"></i><h4>Arrastrá el backup aquí</h4></div><input type="file" id="restore-file-input" accept=".backup,.zip" style="display:none" onchange="procesarArchivoRestore(this)"><button type="button" onclick="confirmarRestauracionTotal()" class="btn-backup-master" style="width:100%;background:#f59e0b;margin-top:16px;display:none" id="btn-restaurar"><i class="fas fa-exclamation-triangle"></i> Restaurar</button></div></div>`; }
 
-async function cargar() { try { const d=await safeFetch('/listar',{method:'POST'}); productos=d.lista||[]; renderProductosVenta(); actualizarEstadisticasRapidas(); } catch(e){} }
+async function cargar() { 
+    try { 
+        const [d, c] = await Promise.all([
+            safeFetch('/listar', {method:'POST'}),
+            safeFetch('/get-config', {method:'POST'})
+        ]);
+        productos = d.lista || []; 
+        configuracion = c || {};
+        window.configuracion = configuracion;
+        renderProductosVenta(); 
+        actualizarEstadisticasRapidas();
+        calcularPreciosMayoristaEnVivo();
+    } catch(e){} 
+}
+    
 async function cargarYRenderAdmin() { try { const d=await safeFetch('/listar',{method:'POST'}); productos=d.lista||[]; renderAdmin(); } catch(e){} }
 async function cargarVentas() { try { const d=await safeFetch('/listar-ventas',{method:'POST'}); ventasHistorial=d.lista||[]; renderVentas(); } catch(e){} }
 async function cargarCategorias() { try { const d=await safeFetch('/listar-categorias',{method:'POST'}); categorias=d.lista||[]; } catch(e){} }
@@ -980,6 +1019,18 @@ function cambiarCantidad(id,d){ const i=document.getElementById('q-'+id); if(i){
 async function addAlCarrito(id){ let p=productos.find(x=>x.id==id); if(!p)return; let idx=varianteSeleccionada[id]||0; let v=p.variantes[idx]; if(!v)return; let c=parseInt(document.getElementById('q-'+id).value); try{const res=await fetch('/verificar-stock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productoId:id,varianteNombre:v.nombre})});const data=await res.json();if(data.stock!==undefined){v.stock=data.stock;seleccionarVarianteVisual(id,idx);}}catch(e){} if(v.stock<c){mostrarToast('❌ Stock insuficiente. Disponible: '+v.stock,true);return;} let e=carrito.find(i=>i.pId===id&&i.vNom===v.nombre&&!i.esManual); if(e){if(v.stock<e.cant+c){mostrarToast('❌ Stock insuficiente',true);return;}e.cant+=c;}else{carrito.push({pId:id,pNom:p.nombre,vNom:v.nombre,vFoto:v.foto||'',precio:p.precio,precioMayor:p.precioMayor||0,cant:c,esManual:false});} calcularPreciosMayoristaEnVivo(); renderCart(); localStorage.setItem('pos_carrito',JSON.stringify(carrito)); mostrarToast('✅ Agregado'); }
 
 function calcularPreciosMayoristaEnVivo(){ 
+    if (mayoristaForzado) {
+        carrito.forEach(i=>{
+            if(i.esManual) return;
+            const p=productos.find(x=>x.id==i.pId);
+            if(!p||!p.precioMayor) return;
+            if(!i.precioOriginal) i.precioOriginal=i.precio;
+            i.precio=p.precioMayor;
+        });
+        renderCart();
+        return;
+    }
+
     let confMayorista = configuracion.mayorista;
     if (typeof confMayorista === 'string') {
         try { confMayorista = JSON.parse(confMayorista); } catch(e) { confMayorista = {}; }
@@ -1047,12 +1098,57 @@ function renderCart(){
     if (floatBadge) {
         floatBadge.textContent = carrito.reduce((acc, item) => acc + item.cant, 0);
     }
+
+    actualizarBotonMayoristaForzado();
+}
+
+function actualizarBotonMayoristaForzado() {
+    const btn = document.getElementById('btn-forzar-mayorista');
+    if (!btn) return;
+    if (mayoristaForzado) {
+        btn.style.background = '#10b981';
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Precio Mayorista Activo (click para quitar)';
+    } else {
+        btn.style.background = '#4A3728';
+        btn.innerHTML = '<i class="fas fa-gem"></i> Aplicar Precio Mayorista';
+    }
 }
 
 function modificarCantidadCarrito(i,d){ if(!carrito[i])return; let nc=carrito[i].cant+d; if(nc<1){eliminarDelCarrito(i);return;} carrito[i].cant=nc; calcularPreciosMayoristaEnVivo(); renderCart(); localStorage.setItem('pos_carrito',JSON.stringify(carrito)); }
 function eliminarDelCarrito(i){ carrito.splice(i,1); calcularPreciosMayoristaEnVivo(); renderCart(); localStorage.setItem('pos_carrito',JSON.stringify(carrito)); }
 function setLog(t){ logistica=t; document.getElementById('form-envio').classList.toggle('hidden',t!=='envio'); document.querySelectorAll('.entrega-btn').forEach(b=>b.classList.remove('active')); document.getElementById(`l-${t}`).classList.add('active'); }
+
 function setMetodo(m){ metodoPago=m; document.querySelectorAll('.pago-btn').forEach(b=>b.classList.remove('active')); document.getElementById(m==='efectivo'?'p-ef':m==='transferencia'?'p-tr':'p-mx').classList.add('active'); }
+
+async function toggleMayoristaForzado() {
+    if (!carrito.length) { mostrarToast('Agregá productos al carrito primero', true); return; }
+
+    if (mayoristaForzado) {
+        mayoristaForzado = false;
+        calcularPreciosMayoristaEnVivo();
+        mostrarToast('Precio mayorista manual desactivado');
+        return;
+    }
+
+    const pass = prompt('🔐 Ingresá tu contraseña de administrador para aplicar precio mayorista:');
+    if (pass === null) return;
+    if (!pass.trim()) { mostrarToast('❌ La contraseña no puede estar vacía', true); return; }
+
+    try {
+        const d = await safeFetch('/admin/verificar-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pass.trim() })
+        });
+        if (d.valida) {
+            mayoristaForzado = true;
+            calcularPreciosMayoristaEnVivo();
+            mostrarToast('✅ Precio mayorista aplicado manualmente');
+        } else {
+            mostrarToast('❌ Contraseña incorrecta', true);
+        }
+    } catch(e) {}
+}
 
 async function checkout(){ 
     if(!carrito.length){mostrarToast('Carrito vacío',true);return;}
@@ -1073,9 +1169,11 @@ async function checkout(){
         if(!n||!dni||!c){mostrarToast('Completá datos',true);return;}
         cd={nombre:n,dni:dni,celular:c};
     } 
+
     let data=await safeFetch('/confirmar-venta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({carrito,pago:{total:totalVenta,metodo:metodoPago},logistica,cliente:cd,mayoristaConfig:{habilitado:mayoristaHabilitado}})}); 
-    if(data.success){mostrarToast(`✅ Venta ${data.ventaId}`);carrito=[];renderCart();localStorage.removeItem('pos_carrito');cargar();cargarVentas();} 
+    if(data.success){mostrarToast(`✅ Venta ${data.ventaId}`);carrito=[];mayoristaForzado=false;renderCart();localStorage.removeItem('pos_carrito');cargar();cargarVentas();} 
 }
+    
 function buscarProductos(){ let b=document.getElementById('buscador').value.toLowerCase(); document.querySelectorAll('#grid-prods .card').forEach(c=>c.style.display=c.getAttribute('data-nombre').includes(b)?'':'none'); }
 
 function renderAdmin(){
