@@ -343,26 +343,6 @@ body.dark-mode .backup-card-item{background:#2A1F18;border-color:#3D2B20}
         </button>
         
         <button type="button" class="btn-confirm" onclick="checkout()"><i class="fas fa-check-circle"></i> CONFIRMAR VENTA</button>
-    </div><label style="font-weight:600;margin:16px 0 8px;display:block"><i class="fas fa-credit-card"></i> Pago</label>
-    <div class="pago-tabs">
-        <button type="button" id="p-ef" class="pago-btn active" onclick="setMetodo('efectivo')"><i class="fas fa-money-bill-wave"></i> Efectivo</button>
-        <button type="button" id="p-tr" class="pago-btn" onclick="setMetodo('transferencia')"><i class="fas fa-exchange-alt"></i> Transf.</button>
-        <button type="button" id="p-mx" class="pago-btn" onclick="setMetodo('mixto')"><i class="fas fa-hand-holding-usd"></i> Mixto</button>
-    </div>
-
-    <button type="button" id="btn-forzar-mayorista" onclick="toggleMayoristaForzado()" style="width:100%; margin:12px 0; background:#4A3728; color:white; border:none; padding:12px; border-radius:50px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-        <i class="fas fa-gem"></i> Aplicar Precio Mayorista
-    </button>
-    
-    <div class="total-container">
-        <div>Total a pagar</div>
-        <div id="total-txt" class="total-amount">$0</div>
-        
-        <button type="button" onclick="abrirModalGasto()" style="width:100%; margin-bottom:10px; background:#E0A899; color:white; border:none; padding:10px; border-radius:50px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-            <i class="fas fa-hand-holding-usd"></i> Anotar Gasto Caja
-        </button>
-        
-        <button type="button" class="btn-confirm" onclick="checkout()"><i class="fas fa-check-circle"></i> CONFIRMAR VENTA</button>
     </div>
 </div>
 
@@ -3051,8 +3031,6 @@ async function confirmarCambioProducto() {
         itemsAgregadosCambio = [];
     } catch(e) {}
 }
-
-function toggleThemePanel(){const p=document.getElementById('theme-panel');if(p)p.style.display=p.style.display==='block'?'none':'block';}
 
 function toggleThemePanel(){const p=document.getElementById('theme-panel');if(p)p.style.display=p.style.display==='block'?'none':'block';}
 function toggleDarkMode(){document.body.classList.toggle('dark-mode');localStorage.setItem('darkMode',document.body.classList.contains('dark-mode'));}
