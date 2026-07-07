@@ -497,6 +497,18 @@ app.post('/admin/cambiar-password', adminMiddleware(), async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/admin/verificar-password', adminMiddleware(), async (req, res) => {
+    try {
+        const { password } = req.body;
+        if (!password) return res.status(400).json({ error: 'Falta la contraseña' });
+        const p = (await pool.query('SELECT * FROM perfiles WHERE id = $1', [req.admin.id])).rows[0];
+        if (!p) return res.status(404).json({ error: 'Perfil no encontrado' });
+        const valida = await bcrypt.compare(password, p.password);
+        if (valida) await logActividad(req.admin.nombre, 'FORZAR_MAYORISTA', 'Verificó contraseña para aplicar precio mayorista manual', req);
+        res.json({ valida });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/admin/perfiles', adminMiddleware(), async (req, res) => {
     const perfiles = (await pool.query('SELECT id, usuario, nombre, rol, permisos, activo FROM perfiles ORDER BY "fechaCreacion" DESC')).rows;
     res.json({ lista: perfiles.map(p => ({ ...p, permisos: JSON.parse(p.permisos||'[]') })) });
