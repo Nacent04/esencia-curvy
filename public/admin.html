@@ -1222,13 +1222,34 @@ function renderVentas(){
             <td style="padding:14px 16px;text-align:right">
                 <strong style="font-size:15px;color:#D4A373">${fmt.format(v.pago.total)}</strong>
             </td>
-            <td style="padding:14px 16px;text-align:right;white-space:nowrap">
-                <button type="button" onclick="verDetalleVenta('${v.id}')" class="btn-print btn-info" title="Ver detalle" style="border-radius:50%;width:32px;height:32px;padding:0"><i class="fas fa-eye"></i></button>
-                <button type="button" onclick="imprimirTicket('${v.id}','termico')" class="btn-print" title="Imprimir ticket" style="border-radius:50%;width:32px;height:32px;padding:0"><i class="fas fa-receipt"></i></button>
-                <button type="button" onclick="imprimirTicket('${v.id}','a4')" class="btn-print btn-excel" title="Descargar factura A4" style="border-radius:50%;width:32px;height:32px;padding:0"><i class="fas fa-file-pdf"></i></button>
+            <td style="padding:14px 16px">
+                <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center">
+                    <button type="button" onclick="verDetalleVenta('${v.id}')" class="btn-print btn-info" title="Ver detalle" style="border-radius:50%;width:32px;height:32px;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:0"><i class="fas fa-eye"></i></button>
+                    <button type="button" onclick="imprimirTicket('${v.id}','termico')" class="btn-print" title="Imprimir ticket" style="border-radius:50%;width:32px;height:32px;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:0"><i class="fas fa-receipt"></i></button>
+                    <button type="button" onclick="imprimirTicket('${v.id}','a4')" class="btn-print btn-excel" title="Descargar factura A4" style="border-radius:50%;width:32px;height:32px;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:0"><i class="fas fa-file-pdf"></i></button>
+                    <button type="button" onclick="eliminarVenta('${v.id}')" class="btn-print" title="Eliminar venta" style="border-radius:50%;width:32px;height:32px;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:0;background:#ef4444"><i class="fas fa-trash-alt"></i></button>
+                </div>
             </td>
         </tr>
     `).join('');
+}
+
+async function eliminarVenta(id) {
+    if (!confirm(`⚠️ ¿Eliminar la venta ${id} de forma definitiva?\nEl stock de los productos se restaurará y dejará de contar como venta en las estadísticas y ganancias.`)) return;
+
+    const password = prompt('🔐 Ingresá tu contraseña de administrador para confirmar la eliminación:');
+    if (password === null) return;
+    if (!password.trim()) { mostrarToast('❌ La contraseña no puede estar vacía', true); return; }
+
+    try {
+        await safeFetch('/admin/eliminar-venta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ventaId: id, password: password.trim() })
+        });
+        mostrarToast('🗑️ Venta eliminada y stock restaurado');
+        cargarVentas();
+    } catch(e) {}
 }
     
 function filtrarVentas(){const t=document.getElementById('ventas-buscador').value.toLowerCase();document.querySelectorAll('#lista-ventas-body tr').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(t)?'':'none');}
