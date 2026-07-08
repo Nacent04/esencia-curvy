@@ -509,6 +509,33 @@ app.post('/admin/verificar-password', adminMiddleware(), async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/admin/eliminar-venta', adminMiddleware(), async (req, res) => {
+    try {
+        const { ventaId, password } = req.body;
+        if (!ventaId) return res.status(400).json({ error: 'Falta el ID de la venta' });
+        if (!password) return res.status(400).json({ error: 'La contraseña de administrador es obligatoria' });
+
+        const p = (await pool.query('SELECT * FROM perfiles WHERE id = $1', [req.admin.id])).rows[0];
+        if (!p) return res.status(404).json({ error: 'Perfil no encontrado' });
+        const valida = await bcrypt.compare(password, p.password);
+        if (!valida) return res.status(401).json({ error: 'Contraseña incorrecta' });
+
+        const v = (await pool.query('SELECT * FROM ventas WHERE id=$1', [ventaId])).rows[0];
+        if (!v) return res.status(404).json({ error: 'Venta no encontrada' });
+
+        const items = JSON.parse(v.items || '[]');
+        for (const it of items) {
+            if (it.esManual) continue;
+            await pool.query('UPDATE variantes SET stock = stock + $1 WHERE "productoId"=$2 AND nombre=$3', [it.cant || 0, it.pId, it.vNom]);
+        }
+
+        await pool.query('DELETE FROM ventas WHERE id=$1', [ventaId]);
+        await logActividad(req.admin.nombre, 'ELIMINAR_VENTA', `Venta ${ventaId} eliminada, stock restaurado`, req);
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/admin/perfiles', adminMiddleware(), async (req, res) => {
     const perfiles = (await pool.query('SELECT id, usuario, nombre, rol, permisos, activo FROM perfiles ORDER BY "fechaCreacion" DESC')).rows;
     res.json({ lista: perfiles.map(p => ({ ...p, permisos: JSON.parse(p.permisos||'[]') })) });
