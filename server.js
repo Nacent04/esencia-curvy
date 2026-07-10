@@ -209,6 +209,15 @@ async function initDB() {
                 "metodoPagoDiferencia" TEXT DEFAULT '',
                 admin TEXT
             );
+            CREATE TABLE IF NOT EXISTS gastos (
+                id SERIAL PRIMARY KEY,
+                fecha TEXT,
+                tipo TEXT,
+                nombre TEXT,
+                monto NUMERIC,
+                usuario TEXT,
+                timestamp BIGINT
+            );
         `);
         console.log('✅ PostgreSQL listo');
     } finally {
@@ -1830,6 +1839,23 @@ async function exportarTabla(nombreTabla) {
     return result.rows;
 }
 
+async function restaurarTabla(nombreTabla, filas) {
+    if (!filas || !filas.length) return 0;
+    let insertadas = 0;
+    for (const fila of filas) {
+        const columnas = Object.keys(fila);
+        if (!columnas.length) continue;
+        const valores = columnas.map(c => fila[c]);
+        const placeholders = columnas.map((_, i) => `$${i+1}`).join(',');
+        const columnasSQL = columnas.map(c => `"${c}"`).join(',');
+        try {
+            await pool.query(`INSERT INTO ${nombreTabla} (${columnasSQL}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`, valores);
+            insertadas++;
+        } catch(e) { console.log(`⚠️ No se pudo restaurar una fila de ${nombreTabla}:`, e.message); }
+    }
+    return insertadas;
+}
+
 app.post('/admin/backup/crear-total', adminMiddleware(), async (req, res) => {
     try {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1845,6 +1871,8 @@ app.post('/admin/backup/crear-total', adminMiddleware(), async (req, res) => {
             notificaciones: await exportarTabla('notificaciones'), configuracion: await exportarTabla('configuracion'),
             metodos_envio: await exportarTabla('metodos_envio'), logs_admin: await exportarTabla('logs_admin'),
             perfiles: await exportarTabla('perfiles'), caja_profesional: await exportarTabla('caja_profesional'),
+            costos_producto: await exportarTabla('costos_producto'), cambios: await exportarTabla('cambios'),
+            gastos: await exportarTabla('gastos'),
         };
         const stats = { productos: datos.productos.length, ventas: datos.ventas.length, usuarios: datos.usuarios.length, pedidos: datos.pedidos.length, imagenes: 0, totalRegistros: 0 };
         Object.values(datos).forEach(val => { if (Array.isArray(val)) stats.totalRegistros += val.length; });
@@ -1914,29 +1942,84 @@ app.post('/admin/backup/restaurar-desde-archivo', adminMiddleware(), uploadBacku
     const { password } = req.body;
     try {
         const adminPerfil = (await pool.query("SELECT * FROM perfiles WHERE usuario = $1", [req.admin.usuario])).rows[0];
-        if (!(await bcrypt.compare(password, adminPerfil.password))) return res.status(403).json({ error: 'Contraseña incorrecta' });
+        if (!adminPerfil || !(await bcrypt.compare(password, adminPerfil.password))) return res.status(403).json({ error: 'Contraseña incorrecta' });
         if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
-        const tempDir = path.join(BACKUP_DIR, 'temp_restore_' + Date.now()); fs.mkdirSync(tempDir, { recursive: true });
+
+        const tempDir = path.join(BACKUP_DIR, 'temp_restore_' + Date.now());
+        fs.mkdirSync(tempDir, { recursive: true });
         await fs.createReadStream(req.file.path).pipe(unzipper.Extract({ path: tempDir })).promise();
+
         let dataDir = tempDir;
-        for (let file of fs.readdirSync(tempDir)) { const fullPath = path.join(tempDir, file); if (fs.statSync(fullPath).isDirectory()) { dataDir = fullPath; break; } }
+        for (let file of fs.readdirSync(tempDir)) {
+            const fullPath = path.join(tempDir, file);
+            if (fs.statSync(fullPath).isDirectory()) { dataDir = fullPath; break; }
+        }
         const dataPath = path.join(dataDir, 'data.json');
         if (!fs.existsSync(dataPath)) throw new Error('Archivo de datos no encontrado');
         const backup = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-        await pool.query('DELETE FROM productos'); await pool.query('DELETE FROM variantes');
-        await pool.query('DELETE FROM categorias'); await pool.query('DELETE FROM ventas');
-        await pool.query('DELETE FROM pedidos'); await pool.query('DELETE FROM notificaciones');
+
+        await pool.query('DELETE FROM cambios');
+        await pool.query('DELETE FROM gastos');
+        await pool.query('DELETE FROM ventas');
+        await pool.query('DELETE FROM pedidos');
+        await pool.query('DELETE FROM notificaciones');
+        await pool.query('DELETE FROM logs_admin');
+        await pool.query('DELETE FROM caja_profesional');
+        await pool.query('DELETE FROM costos_producto');
+        await pool.query('DELETE FROM variantes');
+        await pool.query('DELETE FROM productos');
+        await pool.query('DELETE FROM categorias');
+        await pool.query('DELETE FROM metodos_envio');
         await pool.query('DELETE FROM configuracion');
-        if (backup.productos) for (let p of backup.productos) await pool.query(`INSERT INTO productos (id, nombre, precio, "precioMayor", descripcion, "categoriaId", subcategoria, destacado) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [p.id, p.nombre, p.precio, p.precioMayor||0, p.descripcion||'', p.categoriaId, p.subcategoria||'', p.destacado||0]);
-        if (backup.variantes) for (let v of backup.variantes) await pool.query('INSERT INTO variantes ("productoId", nombre, stock, foto) VALUES ($1,$2,$3,$4)', [v.productoId, v.nombre, v.stock||0, v.foto||'']);
-        if (backup.categorias) for (let c of backup.categorias) await pool.query('INSERT INTO categorias (id, nombre, subcategorias) VALUES ($1,$2,$3)', [c.id, c.nombre, c.subcategorias||'[]']);
-        if (backup.configuracion) for (let c of backup.configuracion) await pool.query('INSERT INTO configuracion (clave, valor) VALUES ($1,$2) ON CONFLICT (clave) DO UPDATE SET valor = $2', [c.clave, c.valor]);
+        await pool.query('DELETE FROM usuarios');
+        await pool.query('DELETE FROM perfiles');
+
+        const stats = {};
+        stats.perfiles = await restaurarTabla('perfiles', backup.perfiles);
+        stats.usuarios = await restaurarTabla('usuarios', backup.usuarios);
+        stats.categorias = await restaurarTabla('categorias', backup.categorias);
+        stats.productos = await restaurarTabla('productos', backup.productos);
+        stats.variantes = await restaurarTabla('variantes', backup.variantes);
+        stats.metodos_envio = await restaurarTabla('metodos_envio', backup.metodos_envio);
+        stats.configuracion = await restaurarTabla('configuracion', backup.configuracion);
+        stats.notificaciones = await restaurarTabla('notificaciones', backup.notificaciones);
+        stats.ventas = await restaurarTabla('ventas', backup.ventas);
+        stats.pedidos = await restaurarTabla('pedidos', backup.pedidos);
+        stats.logs_admin = await restaurarTabla('logs_admin', backup.logs_admin);
+        stats.caja_profesional = await restaurarTabla('caja_profesional', backup.caja_profesional);
+        stats.costos_producto = await restaurarTabla('costos_producto', backup.costos_producto);
+        stats.cambios = await restaurarTabla('cambios', backup.cambios);
+        stats.gastos = await restaurarTabla('gastos', backup.gastos);
+
+        await pool.query(`SELECT setval(pg_get_serial_sequence('variantes','id'), COALESCE((SELECT MAX(id) FROM variantes), 1))`);
+        await pool.query(`SELECT setval(pg_get_serial_sequence('metodos_envio','id'), COALESCE((SELECT MAX(id) FROM metodos_envio), 1))`);
+        await pool.query(`SELECT setval(pg_get_serial_sequence('costos_producto','id'), COALESCE((SELECT MAX(id) FROM costos_producto), 1))`);
+        await pool.query(`SELECT setval(pg_get_serial_sequence('gastos','id'), COALESCE((SELECT MAX(id) FROM gastos), 1))`);
+        
         const imagenesBackup = path.join(dataDir, 'imagenes');
-        if (fs.existsSync(imagenesBackup)) { const upDir = path.join(__dirname, 'uploads'); if (fs.existsSync(upDir)) fs.rmSync(upDir, { recursive: true, force: true }); fs.mkdirSync(upDir, { recursive: true }); const copiarRec = (src, dest) => { for (let e of fs.readdirSync(src, { withFileTypes: true })) { const sp = path.join(src, e.name), dp = path.join(dest, e.name); if (e.isDirectory()) { fs.mkdirSync(dp, { recursive: true }); copiarRec(sp, dp); } else fs.copyFileSync(sp, dp); } }; copiarRec(imagenesBackup, upDir); }
-        fs.rmSync(tempDir, { recursive: true, force: true }); fs.unlinkSync(req.file.path);
-        await logActividad(req.admin.nombre, 'RESTAURACION_SISTEMA', 'Sistema restaurado desde backup', req);
-        res.json({ success: true, stats: { productos: backup.productos?.length||0, ventas: backup.ventas?.length||0, imagenes: backup.metadata?.stats?.imagenes||0 } });
-    } catch (error) { console.error('Error restaurando:', error); res.status(500).json({ error: 'Error al restaurar: ' + error.message }); }
+        if (fs.existsSync(imagenesBackup)) {
+            const upDir = path.join(__dirname, 'uploads');
+            if (fs.existsSync(upDir)) fs.rmSync(upDir, { recursive: true, force: true });
+            fs.mkdirSync(upDir, { recursive: true });
+            const copiarRec = (src, dest) => {
+                for (let e of fs.readdirSync(src, { withFileTypes: true })) {
+                    const sp = path.join(src, e.name), dp = path.join(dest, e.name);
+                    if (e.isDirectory()) { fs.mkdirSync(dp, { recursive: true }); copiarRec(sp, dp); }
+                    else fs.copyFileSync(sp, dp);
+                }
+            };
+            copiarRec(imagenesBackup, upDir);
+        }
+
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        fs.unlinkSync(req.file.path);
+
+        await logActividad(req.admin.nombre, 'RESTAURACION_SISTEMA', 'Sistema restaurado completo desde backup', req);
+        res.json({ success: true, stats });
+    } catch (error) {
+        console.error('Error restaurando:', error);
+        res.status(500).json({ error: 'Error al restaurar: ' + error.message });
+    }
 });
 
 app.use((req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
