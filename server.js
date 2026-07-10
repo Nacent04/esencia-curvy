@@ -1872,7 +1872,7 @@ app.post('/admin/backup/crear-total', adminMiddleware(), async (req, res) => {
             metodos_envio: await exportarTabla('metodos_envio'), logs_admin: await exportarTabla('logs_admin'),
             perfiles: await exportarTabla('perfiles'), caja_profesional: await exportarTabla('caja_profesional'),
             costos_producto: await exportarTabla('costos_producto'), cambios: await exportarTabla('cambios'),
-            gastos: await exportarTabla('gastos'),
+            gastos: await exportarTabla('gastos'), caja_diaria: await exportarTabla('caja_diaria'),
         };
         const stats = { productos: datos.productos.length, ventas: datos.ventas.length, usuarios: datos.usuarios.length, pedidos: datos.pedidos.length, imagenes: 0, totalRegistros: 0 };
         Object.values(datos).forEach(val => { if (Array.isArray(val)) stats.totalRegistros += val.length; });
@@ -1960,6 +1960,7 @@ app.post('/admin/backup/restaurar-desde-archivo', adminMiddleware(), uploadBacku
 
         await pool.query('DELETE FROM cambios');
         await pool.query('DELETE FROM gastos');
+        await pool.query('DELETE FROM caja_diaria');
         await pool.query('DELETE FROM ventas');
         await pool.query('DELETE FROM pedidos');
         await pool.query('DELETE FROM notificaciones');
@@ -1990,6 +1991,7 @@ app.post('/admin/backup/restaurar-desde-archivo', adminMiddleware(), uploadBacku
         stats.costos_producto = await restaurarTabla('costos_producto', backup.costos_producto);
         stats.cambios = await restaurarTabla('cambios', backup.cambios);
         stats.gastos = await restaurarTabla('gastos', backup.gastos);
+        stats.caja_diaria = await restaurarTabla('caja_diaria', backup.caja_diaria);
 
         await pool.query(`SELECT setval(pg_get_serial_sequence('variantes','id'), COALESCE((SELECT MAX(id) FROM variantes), 1))`);
         await pool.query(`SELECT setval(pg_get_serial_sequence('metodos_envio','id'), COALESCE((SELECT MAX(id) FROM metodos_envio), 1))`);
