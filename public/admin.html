@@ -2359,12 +2359,15 @@ async function subirFotoColorMasivo(input, pid, color, tipo) {
                 `).join('');
             }
             
-            const colorSafe = color.replace(/\s/g, '_');
-            const imgSelector = tipo === 'pc' ? `#foto-pc-${pid}-${colorSafe}` : `#foto-mob-${pid}-${colorSafe}`;
-            const imgEl = document.querySelector(imgSelector)?.parentElement?.querySelector('img');
-            if (imgEl) imgEl.src = d.url;
+           const colorSafe = color.replace(/\s/g, '_');
+            const previewId = tipo === 'pc' ? `preview-pc-${pid}-${colorSafe}` : `preview-mob-${pid}-${colorSafe}`;
+            const placeholderId = tipo === 'pc' ? `placeholder-pc-${pid}-${colorSafe}` : `placeholder-mob-${pid}-${colorSafe}`;
+            const imgEl = document.getElementById(previewId);
+            const placeholderEl = document.getElementById(placeholderId);
+            if (imgEl) { imgEl.src = d.url; imgEl.style.display = 'block'; }
+            if (placeholderEl) placeholderEl.style.display = 'none';
             
-            mostrarToast('✅ Foto ' + (tipo === 'pc' ? 'PC' : 'Móvil') + ' aplicada a todos los talles de ' + color);
+            mostrarToast('✅ Foto ' + (tipo === 'pc' ? 'PC' : 'Móvil') + ' aplicada a todos los talles de ' + color); 
         }
     } catch(e) {
         mostrarToast('❌ Error al subir imagen', true);
